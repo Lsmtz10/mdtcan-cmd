@@ -143,20 +143,24 @@ const handleSubmit = async () => {
 
     );
     alert('Email sent successfully!');
- } catch (error: unknown) {
-  console.error('Email sending error:', error?.text || error?.message || error);
-  alert(`Error sending email: ${error?.text || error?.message || 'Unknown error'}`);
+ 
+} catch (error: unknown) {
+  let errorMessage = 'Unknown error';
+
+  if (typeof error === 'object' && error !== null) {
+    if ('text' in error) {
+      errorMessage = (error as any).text;
+    } else if ('message' in error) {
+      errorMessage = (error as any).message;
+    }
+  }
+
+  console.error('Email sending error:', errorMessage);
+  alert(`Error sending email: ${errorMessage}`);
 }
 
   
 };
-
-
-
-
-
-
-
 
   return (
 
