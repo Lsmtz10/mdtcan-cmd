@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react';
+
+
 
 export default function Home() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, string>>({
+
     legalName: '',
     city: '',
     province: '',
@@ -56,7 +59,7 @@ export default function Home() {
     title: '',
     date: '',
   })
-
+  
   const secondaryOptions: { [key: string]: string[] } = {
     hospital: [
       'Public Hospital',
@@ -86,10 +89,13 @@ export default function Home() {
     ],
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+
 
   const renderInput = (label: string, name: keyof typeof formData, type = 'text', isTextArea = false) => (
     <div>
@@ -115,8 +121,11 @@ export default function Home() {
   )
 
   return (
-    <main className="min-h-screen bg-[#f5f5f5] p-6 text-black/80">
-      <h1 className="text-3xl font-semibold text-[#170f5f] mb-6">Customer Profile – Canada</h1>
+
+   <main className="max-w-4xl mx-auto p-6 bg-white text-black">
+      <h1 className="text-2xl font-bold mb-4">Customer Application Form</h1>
+
+
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
         {renderInput('Legal Name', 'legalName')}
         {renderInput('City', 'city')}
@@ -160,6 +169,9 @@ export default function Home() {
 
         {formData.paymentTerms === 'net30' && (
           <>
+            <div className="md:col-span-2 mt-8">
+              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Company Information</h2>
+            </div>
             {renderInput('Type of Organization', 'orgType')}
             {renderInput('Years in Business', 'yearsInBusiness')}
             {renderInput('Type of Business', 'typeOfBusiness')}
@@ -172,6 +184,9 @@ export default function Home() {
             {renderInput('Taxable', 'taxable')}
             {renderInput('GST Exempt Certificate #', 'gstExempt')}
             {renderInput('PST Exempt Certificate #', 'pstExempt')}
+            <div className="md:col-span-2 mt-8">
+              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Bank References</h2>
+            </div>
             {renderInput('Bank Name', 'bankName')}
             {renderInput('Bank Address', 'bankAddress')}
             {renderInput('Account Manager', 'accountManager')}
@@ -179,17 +194,37 @@ export default function Home() {
             {renderInput('Bank Fax', 'bankFax')}
             {renderInput('Account Number', 'accountNumber')}
             {renderInput('Bank Email', 'bankEmail', 'email')}
-            {[1, 2].map(i => (
-              <div key={i} className="md:col-span-2 border p-4 rounded bg-white">
-                <h3 className="font-medium text-[#170f5f] mb-2">Trade Reference {i}</h3>
-                {renderInput(`Company Name`, `tradeCompany${i}` as any)}
-                {renderInput(`Account No.`, `tradeAccount${i}` as any)}
-                {renderInput(`Address`, `tradeAddress${i}` as any)}
-                {renderInput(`Tel #`, `tradeTel${i}` as any)}
-                {renderInput(`Contact Name`, `tradeContact${i}` as any)}
-                {renderInput(`Email`, `tradeEmail${i}` as any, 'email')}
+
+      {/* Trade References con tipado corregido */}
+
+
+            <div className="md:col-span-2">
+              <h2 className="text-xl font-semibold text-[#170f5f] mt-10 mb-4">Trade References</h2>
+              <div className="grid grid-cols-1 gap-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="border rounded p-4">
+                    <h3 className="text-lg font-semibold mb-2">Trade Reference {i}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {['Company', 'Account', 'Address', 'Tel', 'Contact', 'Email'].map((field) => (
+                        <div key={field}>
+                          <label className="block mb-1">{field === 'Tel' ? 'Telephone' : field === 'Contact' ? 'Contact Person' : field === 'Account' ? 'Account No.' : field + ' Name'}</label>
+                          <input
+                            type={field === 'Email' ? 'email' : 'text'}
+                            name={`trade${field}${i}`}
+                            value={(formData as Record<string, string>)[`trade${field}${i}`] || ''}
+                            onChange={handleChange}
+                            className="w-full border rounded px-3 py-2"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+
+           
           </>
         )}
 
@@ -286,9 +321,6 @@ export default function Home() {
             Submit
           </button>
         </div>
-
-
-
 
 
 
