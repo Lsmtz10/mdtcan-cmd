@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 
+import emailjs from '@emailjs/browser'
 
 
 export default function Home() {
@@ -121,6 +122,39 @@ export default function Home() {
       )}
     </div>
   )
+
+
+
+const handleSubmit = async () => {
+  const timestamp = new Date().toISOString();
+  const formattedData = Object.entries(formData)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('\n');
+
+  try {
+    const result = await emailjs.send(
+      'service_i6is1vl',           // tu Service ID
+      'template_yuvc7fc',           // tu Template ID
+      {
+        formData: formattedData,
+        timestamp: timestamp,
+      },
+      'BhNrfAyGnu7vx_rYL'          // tu Public Key
+
+    );
+    alert('Email sent successfully!');
+ } catch (error: any) {
+  console.error('Email sending error:', error?.text || error?.message || error);
+  alert(`Error sending email: ${error?.text || error?.message || 'Unknown error'}`);
+}
+};
+
+
+
+
+
+
+
 
   return (
 
@@ -315,14 +349,18 @@ export default function Home() {
         </div>
 
         {/* SUBMIT BUTTON */}
-        <div className="md:col-span-2 mt-10 text-right">
-          <button
-            type="button"
-            className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
-          >
-            Submit
-          </button>
-        </div>
+
+
+
+
+<button
+  type="button"
+  onClick={handleSubmit}
+  className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
+>
+  Submit
+</button>
+
 
 
 
