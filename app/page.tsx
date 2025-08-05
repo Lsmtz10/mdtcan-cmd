@@ -147,12 +147,14 @@ const handleSubmit = async () => {
 } catch (error: unknown) {
   let errorMessage = 'Unknown error';
 
-  if (typeof error === 'object' && error !== null) {
-    if ('text' in error) {
-      errorMessage = (error as any).text;
-    } else if ('message' in error) {
-      errorMessage = (error as any).message;
-    }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    ('text' in error || 'message' in error)
+  ) {
+    errorMessage = (error as { text?: string; message?: string }).text
+      ?? (error as { text?: string; message?: string }).message
+      ?? 'Unknown error';
   }
 
   console.error('Email sending error:', errorMessage);
