@@ -132,7 +132,7 @@ const handleSubmit = async () => {
     .join('\n');
 
   try {
-    const result = await emailjs.send(
+     await emailjs.send(
       'service_i6is1vl',           // tu Service ID
       'template_yuvc7fc',           // tu Template ID
       {
@@ -143,10 +143,12 @@ const handleSubmit = async () => {
 
     );
     alert('Email sent successfully!');
- } catch (error: any) {
+ } catch (error: unknown) {
   console.error('Email sending error:', error?.text || error?.message || error);
   alert(`Error sending email: ${error?.text || error?.message || 'Unknown error'}`);
 }
+
+  
 };
 
 
