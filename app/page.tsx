@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 
 import emailjs from '@emailjs/browser'
 
+import { useRouter } from 'next/navigation';
 
 
 export default function Home() {
@@ -125,6 +126,8 @@ export default function Home() {
   )
 
 
+const router = useRouter();
+
 
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
@@ -143,8 +146,10 @@ const handleSubmit = async () => {
       'BhNrfAyGnu7vx_rYL'          // tu Public Key
 
     );
-    alert('Email sent successfully!');
- 
+
+    router.push('/confirmation');
+
+    
 } catch (error: unknown) {
   let errorMessage = 'Unknown error';
 
@@ -162,7 +167,6 @@ const handleSubmit = async () => {
   alert(`Error sending email: ${errorMessage}`);
 }
 
-  
 };
 
 
@@ -170,13 +174,12 @@ const handleSubmit = async () => {
   return (
 
    <main className="max-w-4xl mx-auto p-6 bg-white text-black">
-<div className="flex items-center justify-between mb-8">
-  <img
-    src="/Medtronic_logo.jpg"
-    alt="Medtronic Logo"
-    className="h-[49px] w-auto"
-  />
-  <h1 className="text-2xl font-bold text-right w-full">Customer Application Form - Canada</h1>
+
+
+
+<div className="flex flex-col md:flex-row items-center md:justify-between text-center md:text-left gap-2 mb-6">
+  <img src="/Medtronic_logo.jpg" alt="Medtronic" className="h-12" />
+  <h1 className="text-xl font-bold">Customer Application Form - Canada</h1>
 </div>
 
 
