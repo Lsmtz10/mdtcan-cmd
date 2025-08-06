@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import emailjs from '@emailjs/browser'
 
 
+
 export default function Home() {
   const [formData, setFormData] = useState<Record<string, string>>({
 
@@ -22,7 +23,7 @@ export default function Home() {
     apPhone: '',
     apEmail: '',
     paymentTerms: '',
-    orgType: '',
+    typeOfOrganization: '',
     yearsInBusiness: '',
     typeOfBusiness: '',
     annualSales: '',
@@ -164,10 +165,21 @@ const handleSubmit = async () => {
   
 };
 
+
+
   return (
 
    <main className="max-w-4xl mx-auto p-6 bg-white text-black">
-      <h1 className="text-2xl font-bold mb-4">Customer Application Form</h1>
+<div className="flex items-center justify-between mb-8">
+  <img
+    src="/Medtronic_logo.jpg"
+    alt="Medtronic Logo"
+    className="h-[49px] w-auto"
+  />
+  <h1 className="text-2xl font-bold text-right w-full">Customer Application Form - Canada</h1>
+</div>
+
+
 
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
@@ -216,7 +228,28 @@ const handleSubmit = async () => {
             <div className="md:col-span-2 mt-8">
               <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Company Information</h2>
             </div>
-            {renderInput('Type of Organization', 'orgType')}
+
+
+ <div>
+  <label className="block mb-1">Type of Organization</label>
+  <select
+    name="typeOfOrganization"
+    value={formData.typeOfOrganization}
+    onChange={handleChange}
+    className="w-full border rounded px-3 py-2"
+  >
+    <option value="">Select</option>
+    <option value="Corporation">Corporation</option>
+    <option value="Partnership">Partnership</option>
+    <option value="Proprietorship">Proprietorship</option>
+  </select>
+</div>
+
+
+
+
+
+
             {renderInput('Years in Business', 'yearsInBusiness')}
             {renderInput('Type of Business', 'typeOfBusiness')}
             {renderInput('Annual Sales', 'annualSales')}
