@@ -7,6 +7,12 @@ import emailjs from '@emailjs/browser'
 import { useRouter } from 'next/navigation';
 
 
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0]; // formato: yyyy-mm-dd
+};
+
+
 export default function Home() {
   const [formData, setFormData] = useState<Record<string, string>>({
 
@@ -60,7 +66,7 @@ export default function Home() {
     salesRepName: '',
     requestorName: '',
     title: '',
-    date: '',
+    date: getTodayDate(),
   })
   
   const secondaryOptions: { [key: string]: string[] } = {
@@ -188,7 +194,31 @@ const handleSubmit = async () => {
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
         {renderInput('Legal Name', 'legalName')}
         {renderInput('City', 'city')}
-        {renderInput('Province', 'province')}
+
+
+<div>
+  <label className="block mb-1">Province</label>
+  <select
+    name="province"
+    value={formData.province}
+    onChange={handleChange}
+    className="w-full border rounded px-3 py-2"
+  >
+    <option value="">Select</option>
+    <option value="Alberta">Alberta</option>
+    <option value="British Columbia">British Columbia</option>
+    <option value="Manitoba">Manitoba</option>
+    <option value="New Brunswick">New Brunswick</option>
+    <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
+    <option value="Nova Scotia">Nova Scotia</option>
+    <option value="Ontario">Ontario</option>
+    <option value="Prince Edward Island">Prince Edward Island</option>
+    <option value="Quebec">Quebec</option>
+    <option value="Saskatchewan">Saskatchewan</option>
+  </select>
+</div>
+
+
         {renderInput('Postal Code', 'postalCode')}
         {renderInput('Telephone #', 'telephone')}
         {renderInput('Fax #', 'fax')}
@@ -247,11 +277,6 @@ const handleSubmit = async () => {
     <option value="Proprietorship">Proprietorship</option>
   </select>
 </div>
-
-
-
-
-
 
             {renderInput('Years in Business', 'yearsInBusiness')}
             {renderInput('Type of Business', 'typeOfBusiness')}
