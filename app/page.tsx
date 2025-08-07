@@ -39,9 +39,11 @@ export default function Home() {
     products: '',
     initialOrder: '',
     annualPurchase: '',
-    taxable: '',
-    gstExempt: '',
-    pstExempt: '',
+
+  taxable: '',
+  gstTaxExempt: '',
+  pstTaxExempt: '',
+
     bankName: '',
     bankAddress: '',
     accountManager: '',
@@ -286,9 +288,48 @@ const handleSubmit = async () => {
             {renderInput('Products Interested in Purchasing', 'products', 'text', true)}
             {renderInput('Estimated Initial Order', 'initialOrder')}
             {renderInput('Expected Annual Purchase', 'annualPurchase')}
-            {renderInput('Taxable', 'taxable')}
-            {renderInput('GST Exempt Certificate #', 'gstExempt')}
-            {renderInput('PST Exempt Certificate #', 'pstExempt')}
+
+
+<div>
+  <label className="block mb-1">Taxable</label>
+  <select
+    name="taxable"
+    value={formData.taxable}
+    onChange={handleChange}
+    className="w-full border rounded px-3 py-2"
+  >
+    <option value="">Select</option>
+    <option value="yes">Yes</option>
+    <option value="no">No</option>
+  </select>
+</div>
+
+<div className="mt-4">
+  <label className="block mb-1">
+    If GST non-taxable, provide Tax Exempt Certificate #:
+  </label>
+  <input
+    type="text"
+    name="gstTaxExempt"
+    value={formData.gstTaxExempt}
+    onChange={handleChange}
+    className="w-full border rounded px-3 py-2"
+  />
+</div>
+
+<div className="mt-4">
+  <label className="block mb-1">
+    If PST non-taxable, provide Tax Exempt Certificate #:
+  </label>
+  <input
+    type="text"
+    name="pstTaxExempt"
+    value={formData.pstTaxExempt}
+    onChange={handleChange}
+    className="w-full border rounded px-3 py-2"
+  />
+</div>
+
             <div className="md:col-span-2 mt-8">
               <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Bank References</h2>
             </div>
