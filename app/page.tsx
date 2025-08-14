@@ -90,19 +90,6 @@ export default function Home() {
   }
 
 
-// Provinces de Canadá (10, sin territorios; si necesitas territorios, me dices y los añadimos)
-const PROVINCES_CA = [
-  "Alberta",
-  "British Columbia",
-  "Manitoba",
-  "New Brunswick",
-  "Newfoundland and Labrador",
-  "Nova Scotia",
-  "Ontario",
-  "Prince Edward Island",
-  "Quebec",
-  "Saskatchewan",
-] as const;
 
 
 // Allow: letters (incl. accents), spaces, hyphen, apostrophe (' or ’), dot, digits (opcionales)
@@ -124,11 +111,22 @@ function validateCity(value: string): string | null {
 }
 
 
+// justo debajo de 'use client' y de tus imports, SIN export
+const PROVINCES_CA = [
+  "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
+  "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
+] as const;
+
+const PROVINCES_SET = new Set<string>(PROVINCES_CA);
+
 function validateProvince(value: string): string | null {
   if (!value) return "Province is required.";
-  if (!PROVINCES_CA.includes(value as any)) return "Select a valid province.";
+  if (!PROVINCES_SET.has(value)) return "Select a valid province.";
   return null;
 }
+
+
+
 
 
 // Letras permitidas por Canada Post (no D, F, I, O, Q, U)
