@@ -71,32 +71,50 @@ export default function Home() {
     date: getTodayDate(),
   })
   
+
+  const [errors, setErrors] = useState<{ legalName?: string }>({});
+
+  const LEGAL_NAME_MAX = 35;
+  // Letras Unicode (incluye acentos) + marcas combinadas + dígitos + espacios
+  const LEGAL_NAME_ALLOWED = /^[\p{L}\p{M}\d ]+$/u;
+  
+  function validateLegalName(value: string): string | null {
+    const v = value.trim();
+    if (!v) return "Legal Name is required.";
+    if (v.length > LEGAL_NAME_MAX) return `Max length is ${LEGAL_NAME_MAX} characters.`;
+    if (!LEGAL_NAME_ALLOWED.test(v)) return "Only letters, numbers, and spaces are allowed.";
+    return null;
+  }
+
+
   const secondaryOptions: { [key: string]: string[] } = {
     hospital: [
       'Public Hospital',
-      'University Hospital/Medical Center',
-      'Blood Service / Private Lab',
-      'Emergency Medical',
-      'Surgical Center',
     ],
     alternate: [
+      'Blood Service / Private Lab',
       'Dentist Office',
       'Pharmacy',
       'Veterinary Office',
-      'Diagnostic Imaging Center',
-      'Sleep Clinic',
-      'Respiratory Services',
+
+
     ],
     continuing: [
+      'Diagnostic Imaging Center',
+      'Emergency Medical',
       'Extended Care Facility',
-      'Home Health Care Provider',
-      'Transitional Care (Rehab)',
-      'Physician Office / Clinic',
-      'Public Clinic',
-      'School',
       'Government',
       'Health Miscellaneous',
+      'Home Health Care Provider',
+      'Public Clinic',
+      'Physician Office / Clinic',
+      'Respiratory Services',
+      'School',
+      'Sleep Clinic',
+      'Surgical Center',
+      'Transitional Care (Rehab)',
       'University Hospital/Medical Center',
+
     ],
   }
 
@@ -105,6 +123,19 @@ export default function Home() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    if (name === "legalName") {
+      const cleaned = value
+        .normalize("NFC")
+        .replace(/[^\p{L}\p{M}\d ]/gu, "")   // elimina caracteres no permitidos
+        .slice(0, LEGAL_NAME_MAX);           // tope de 35
+    
+      setFormData(prev => ({ ...prev, legalName: cleaned }));
+      const msg = validateLegalName(cleaned);
+      setErrors(prev => ({ ...prev, legalName: msg || undefined }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -139,6 +170,18 @@ const router = useRouter();
 
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
+
+
+  const msg = validateLegalName(formData.legalName);
+  if (msg) {
+    setErrors(prev => ({ ...prev, legalName: msg }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+
+
+
+
   const formattedData = Object.entries(formData)
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
@@ -179,6 +222,13 @@ const handleSubmit = async () => {
 
 
 
+
+
+
+
+
+
+
   return (
 
    <main className="max-w-4xl mx-auto p-6 bg-white text-black">
@@ -194,9 +244,37 @@ const handleSubmit = async () => {
 
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
-        {renderInput('Legal Name', 'legalName')}
-        {renderInput('City', 'city')}
+        
+   
 
+  
+        <div>
+  <label className="block mb-1" htmlFor="legalName">Legal Name</label>
+  <input
+    id="legalName"
+    name="legalName"
+    type="text"
+    value={formData.legalName}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        legalName: validateLegalName(formData.legalName) || undefined
+      }))
+    }
+    maxLength={LEGAL_NAME_MAX}
+    // El atributo pattern ayuda al navegador; la validación real ya la hacemos arriba
+    pattern="[\p{L}\p{M}\d ]+"
+    className={`w-full border rounded px-3 py-2 ${errors.legalName ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.legalName}
+    aria-describedby="legalName-error"
+  />
+  {errors.legalName && (
+    <p id="legalName-error" className="text-red-600 text-sm mt-1">{errors.legalName}</p>
+  )}
+</div>
+
+        {renderInput('City', 'city')}
 
 <div>
   <label className="block mb-1">Province</label>
