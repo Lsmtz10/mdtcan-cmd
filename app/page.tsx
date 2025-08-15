@@ -75,6 +75,9 @@ export default function Home() {
     city?: string;
     province?: string;
     postalCode?: string;
+    telephone?: string;
+    apPhone?: string;
+    fax?: string;
   }>({});
 
   const LEGAL_NAME_MAX = 35;
@@ -153,7 +156,48 @@ function validatePostalCode(value: string): string | null {
 
 
 
+// Quita todo lo que no sea dígito
+function onlyDigits(s: string): string {
+  return s.replace(/\D/g, "");
+}
 
+// Normaliza a 10 dígitos (permite +1 / 1 inicial) y retorna en formato legible
+function normalizePhoneCA(raw: string): string {
+  let d = onlyDigits(raw);
+  if (d.startsWith("1") && d.length >= 11) d = d.slice(1); // quita prefijo país si viene
+  d = d.slice(0, 10); // tope 10
+
+  // Formato visible; no “brinca” el cursor demasiado y es claro
+  if (d.length >= 7) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+  if (d.length >= 4) return `(${d.slice(0,3)}) ${d.slice(3)}`;
+  if (d.length >= 1) return `(${d}`;
+  return "";
+}
+
+// Valida 10 dígitos (si es requerido); si opcional y vacío, no marca error
+function validatePhoneCA(value: string, required: boolean, fieldLabel: string): string | null {
+  const digits = onlyDigits(value);
+  if (!digits) {
+    return required ? `${fieldLabel} is required.` : null;
+  }
+  // Quita 1 inicial si sobrara por copy/paste
+  const core = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (core.length !== 10) return `${fieldLabel} must have 10 digits.`;
+  // (Opcional) Reglas NANP más estrictas:
+  // if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(core)) return `${fieldLabel} is not a valid Canadian number.`;
+  return null;
+}
+
+function handlePhoneFieldChange(
+  field: "telephone" | "apPhone" | "fax",
+  required: boolean,
+  value: string
+) {
+  const normalized = normalizePhoneCA(value);
+  setFormData(prev => ({ ...prev, [field]: normalized }));
+  const msg = validatePhoneCA(normalized, required, field === "fax" ? "Fax" : field === "telephone" ? "Telephone" : "Accounts Payable Phone");
+  setErrors(prev => ({ ...prev, [field]: msg || undefined }));
+}
 
 
 
@@ -236,7 +280,19 @@ if (name === "city") {
       return;
     }
     
-
+    if (name === "telephone") {
+      handlePhoneFieldChange("telephone", true, value);
+      return;
+    }
+    if (name === "apPhone") {
+      handlePhoneFieldChange("apPhone", true, value);
+      return;
+    }
+    if (name === "fax") {
+      handlePhoneFieldChange("fax", false, value);
+      return;
+    }
+    
 
 
 
@@ -303,6 +359,23 @@ const handleSubmit = async () => {
     return;
   }
 
+  const telMsg = validatePhoneCA(formData.telephone, true, "Telephone");
+  const apMsg  = validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone");
+  const faxMsg = validatePhoneCA(formData.fax ?? "", false, "Fax");
+  
+  if (telMsg || apMsg || faxMsg) {
+    setErrors(prev => ({
+      ...prev,
+      telephone: telMsg || undefined,
+      apPhone: apMsg || undefined,
+      fax: faxMsg || undefined,
+    }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+  
+
+
 
 
   const formattedData = Object.entries(formData)
@@ -366,7 +439,10 @@ const handleSubmit = async () => {
 
 
 
-      <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl"  
+             noValidate
+             onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+               >
         
    
 
@@ -475,7 +551,7 @@ const handleSubmit = async () => {
         postalCode: validatePostalCode(formData.postalCode) || undefined
       }))
     }
-    pattern="[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] [ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY]\d"
+   
     className={`w-full border rounded px-3 py-2 ${errors.postalCode ? 'border-red-600' : ''}`}
     aria-invalid={!!errors.postalCode}
     aria-describedby="postalCode-error"
@@ -486,14 +562,97 @@ const handleSubmit = async () => {
 </div>
 
 
-        {renderInput('Telephone #', 'telephone')}
-        {renderInput('Fax #', 'fax')}
+{/* Telephone (required) */}
+<div>
+  <label className="block mb-1" htmlFor="telephone">Telephone</label>
+  <input
+    id="telephone"
+    name="telephone"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.telephone}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      telephone: validatePhoneCA(formData.telephone, true, "Telephone") || undefined
+    }))}
+    // patrón flexible: +1 opcional, separadores opcionales
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.telephone ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.telephone}
+    aria-describedby="telephone-error"
+  />
+  {errors.telephone && <p id="telephone-error" className="text-red-600 text-sm mt-1">{errors.telephone}</p>}
+</div>
+        
+
+
+
+{/* Fax (optional) */}
+<div>
+  <label className="block mb-1" htmlFor="fax">Fax (optional)</label>
+  <input
+    id="fax"
+    name="fax"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.fax}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      fax: validatePhoneCA(formData.fax ?? "", false, "Fax") || undefined
+    }))}
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.fax ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.fax}
+    aria-describedby="fax-error"
+  />
+  {errors.fax && <p id="fax-error" className="text-red-600 text-sm mt-1">{errors.fax}</p>}
+</div>
+
+
+
         {renderInput('Website', 'website')}
         {renderInput('Email', 'email', 'email')}
         {renderInput('Bill To Address', 'billTo', 'text', true)}
         {renderInput('Ship To Address', 'shipTo', 'text', true)}
         {renderInput('Accounts Payable Contact', 'apContact')}
-        {renderInput('A/P Phone', 'apPhone')}
+
+
+
+
+
+
+{/* Accounts Payable Phone (required) */}
+<div>
+  <label className="block mb-1" htmlFor="apPhone">Accounts Payable Phone</label>
+  <input
+    id="apPhone"
+    name="apPhone"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.apPhone}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      apPhone: validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone") || undefined
+    }))}
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.apPhone ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.apPhone}
+    aria-describedby="apphone-error"
+  />
+  {errors.apPhone && <p id="apphone-error" className="text-red-600 text-sm mt-1">{errors.apPhone}</p>}
+</div>
+
+
+
         {renderInput('A/P Email', 'apEmail', 'email')}
 
         <div className="md:col-span-2 mt-8">
@@ -728,7 +887,7 @@ const handleSubmit = async () => {
 
 
 <button
-  type="button"
+  type="submit"
   onClick={handleSubmit}
   className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
 >
