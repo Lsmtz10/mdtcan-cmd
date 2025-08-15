@@ -39,11 +39,9 @@ export default function Home() {
     products: '',
     initialOrder: '',
     annualPurchase: '',
-
-  taxable: '',
-  gstTaxExempt: '',
-  pstTaxExempt: '',
-
+    taxable: '',
+    gstTaxExempt: '',
+    pstTaxExempt: '',
     bankName: '',
     bankAddress: '',
     accountManager: '',
@@ -71,32 +69,168 @@ export default function Home() {
     date: getTodayDate(),
   })
   
+
+  const [errors, setErrors] = useState<{
+    legalName?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+    telephone?: string;
+    apPhone?: string;
+    fax?: string;
+  }>({});
+
+  const LEGAL_NAME_MAX = 35;
+  // Letras Unicode (incluye acentos) + marcas combinadas + dígitos + espacios
+  const LEGAL_NAME_ALLOWED = /^[\p{L}\p{M}\d ]+$/u;
+  
+  function validateLegalName(value: string): string | null {
+    const v = value.trim();
+    if (!v) return "Legal Name is required.";
+    if (v.length > LEGAL_NAME_MAX) return `Max length is ${LEGAL_NAME_MAX} characters.`;
+    if (!LEGAL_NAME_ALLOWED.test(v)) return "Only letters, numbers, and spaces are allowed.";
+    return null;
+  }
+
+
+
+
+// Allow: letters (incl. accents), spaces, hyphen, apostrophe (' or ’), dot, digits (opcionales)
+// const CITY_ALLOWED = /^[\p{L}\p{M}\d .'\-’]+$/u;
+
+// Valida: letras (incl. acentos), dígitos, espacio, punto, apóstrofe (dos variantes) y guion
+const CITY_ALLOWED = /^[\p{L}\p{M}\d .'\-]+$/u;
+// Para limpiar mientras se escribe (negado del conjunto permitido)
+const CITY_STRIP = /[^ \p{L}\p{M}\d.'-]/gu;
+
+
+function validateCity(value: string): string | null {
+  const v = value.trim();
+  if (!v) return "City is required.";
+  if (!CITY_ALLOWED.test(v)) {
+    return "Only letters, numbers, spaces, hyphens (-), apostrophes (’ or '), and periods (.) are allowed.";
+  }
+  return null;
+}
+
+
+// justo debajo de 'use client' y de tus imports, SIN export
+const PROVINCES_CA = [
+  "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
+  "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
+] as const;
+
+const PROVINCES_SET = new Set<string>(PROVINCES_CA);
+
+function validateProvince(value: string): string | null {
+  if (!value) return "Province is required.";
+  if (!PROVINCES_SET.has(value)) return "Select a valid province.";
+  return null;
+}
+
+
+
+
+
+// Letras permitidas por Canada Post (no D, F, I, O, Q, U)
+const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
+
+// Regex oficial con **espacio obligatorio** entre bloques
+const POSTAL_REGEX = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] \d[ABCEGHJKLMNPRSTVXY]\d$/;
+
+function normalizePostalInput(raw: string): string {
+  const up = raw.toUpperCase().normalize("NFC");
+  // Acepta que el usuario teclee con o sin espacio/guion; tú lo formateas
+  const alnum = up.replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  return alnum.length > 3 ? `${alnum.slice(0, 3)} ${alnum.slice(3)}` : alnum;
+}
+
+function validatePostalCode(value: string): string | null {
+  const v = value.trim().toUpperCase();
+  if (!v) return "Postal Code is required.";
+  if (!POSTAL_REGEX.test(v)) {
+    return "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXY are valid.";
+  }
+  return null;
+}
+
+
+
+// Quita todo lo que no sea dígito
+function onlyDigits(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+// Normaliza a 10 dígitos (permite +1 / 1 inicial) y retorna en formato legible
+function normalizePhoneCA(raw: string): string {
+  let d = onlyDigits(raw);
+  if (d.startsWith("1") && d.length >= 11) d = d.slice(1); // quita prefijo país si viene
+  d = d.slice(0, 10); // tope 10
+
+  // Formato visible; no “brinca” el cursor demasiado y es claro
+  if (d.length >= 7) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+  if (d.length >= 4) return `(${d.slice(0,3)}) ${d.slice(3)}`;
+  if (d.length >= 1) return `(${d}`;
+  return "";
+}
+
+// Valida 10 dígitos (si es requerido); si opcional y vacío, no marca error
+function validatePhoneCA(value: string, required: boolean, fieldLabel: string): string | null {
+  const digits = onlyDigits(value);
+  if (!digits) {
+    return required ? `${fieldLabel} is required.` : null;
+  }
+  // Quita 1 inicial si sobrara por copy/paste
+  const core = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (core.length !== 10) return `${fieldLabel} must have 10 digits.`;
+  // (Opcional) Reglas NANP más estrictas:
+  // if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(core)) return `${fieldLabel} is not a valid Canadian number.`;
+  return null;
+}
+
+function handlePhoneFieldChange(
+  field: "telephone" | "apPhone" | "fax",
+  required: boolean,
+  value: string
+) {
+  const normalized = normalizePhoneCA(value);
+  setFormData(prev => ({ ...prev, [field]: normalized }));
+  const msg = validatePhoneCA(normalized, required, field === "fax" ? "Fax" : field === "telephone" ? "Telephone" : "Accounts Payable Phone");
+  setErrors(prev => ({ ...prev, [field]: msg || undefined }));
+}
+
+
+
+
+
   const secondaryOptions: { [key: string]: string[] } = {
     hospital: [
       'Public Hospital',
-      'University Hospital/Medical Center',
-      'Blood Service / Private Lab',
-      'Emergency Medical',
-      'Surgical Center',
     ],
     alternate: [
+      'Blood Service / Private Lab',
       'Dentist Office',
       'Pharmacy',
       'Veterinary Office',
-      'Diagnostic Imaging Center',
-      'Sleep Clinic',
-      'Respiratory Services',
+
+
     ],
     continuing: [
+      'Diagnostic Imaging Center',
+      'Emergency Medical',
       'Extended Care Facility',
-      'Home Health Care Provider',
-      'Transitional Care (Rehab)',
-      'Physician Office / Clinic',
-      'Public Clinic',
-      'School',
       'Government',
       'Health Miscellaneous',
+      'Home Health Care Provider',
+      'Public Clinic',
+      'Physician Office / Clinic',
+      'Respiratory Services',
+      'School',
+      'Sleep Clinic',
+      'Surgical Center',
+      'Transitional Care (Rehab)',
       'University Hospital/Medical Center',
+
     ],
   }
 
@@ -105,6 +239,64 @@ export default function Home() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    if (name === "legalName") {
+      const cleaned = value
+        .normalize("NFC")
+        .replace(/[^\p{L}\p{M}\d ]/gu, "")   // elimina caracteres no permitidos
+        .slice(0, LEGAL_NAME_MAX);           // tope de 35
+    
+      setFormData(prev => ({ ...prev, legalName: cleaned }));
+      const msg = validateLegalName(cleaned);
+      setErrors(prev => ({ ...prev, legalName: msg || undefined }));
+      return;
+    }
+   
+
+// --- handleChange (sustituye SOLO el bloque de city) ---
+if (name === "city") {
+  const cleaned = value
+    .normalize("NFC")
+    .replace(/[–—]/g, "-")   // en/em dash -> hyphen
+    .replace(/[’]/g, "'")    // apóstrofe tipográfico -> simple
+    .replace(CITY_STRIP, "") // elimina lo no permitido
+    .replace(/\s{2,}/g, " "); // colapsa espacios múltiples
+  setFormData(prev => ({ ...prev, city: cleaned }));
+  setErrors(prev => ({ ...prev, city: (cleaned.trim() ? (CITY_ALLOWED.test(cleaned) ? undefined : "Only letters, numbers, spaces, hyphens (-), apostrophes ('), and periods (.) are allowed.") : "City is required.") }));
+  return;
+}
+    
+    if (name === "province") {
+      setFormData(prev => ({ ...prev, province: value }));
+      setErrors(prev => ({ ...prev, province: validateProvince(value) || undefined }));
+      return;
+    }
+    
+
+    if (name === "postalCode") {
+      const cleaned = normalizePostalInput(value);
+      setFormData(prev => ({ ...prev, postalCode: cleaned }));
+      setErrors(prev => ({ ...prev, postalCode: validatePostalCode(cleaned) || undefined }));
+      return;
+    }
+    
+    if (name === "telephone") {
+      handlePhoneFieldChange("telephone", true, value);
+      return;
+    }
+    if (name === "apPhone") {
+      handlePhoneFieldChange("apPhone", true, value);
+      return;
+    }
+    if (name === "fax") {
+      handlePhoneFieldChange("fax", false, value);
+      return;
+    }
+    
+
+
+
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -139,6 +331,53 @@ const router = useRouter();
 
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
+
+  const msg = validateLegalName(formData.legalName);
+  if (msg) {
+    setErrors(prev => ({ ...prev, legalName: msg }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+
+  const cityMsg = validateCity(formData.city);
+  const provMsg = validateProvince(formData.province);
+  
+  if (cityMsg || provMsg) {
+    setErrors(prev => ({
+      ...prev,
+      city: cityMsg || undefined,
+      province: provMsg || undefined,
+    }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+  
+  const pcMsg = validatePostalCode(formData.postalCode);
+  if (pcMsg) {
+    setErrors(prev => ({ ...prev, postalCode: pcMsg }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+
+  const telMsg = validatePhoneCA(formData.telephone, true, "Telephone");
+  const apMsg  = validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone");
+  const faxMsg = validatePhoneCA(formData.fax ?? "", false, "Fax");
+  
+  if (telMsg || apMsg || faxMsg) {
+    setErrors(prev => ({
+      ...prev,
+      telephone: telMsg || undefined,
+      apPhone: apMsg || undefined,
+      fax: faxMsg || undefined,
+    }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+  
+
+
+
+
   const formattedData = Object.entries(formData)
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
@@ -179,6 +418,13 @@ const handleSubmit = async () => {
 
 
 
+
+
+
+
+
+
+
   return (
 
    <main className="max-w-4xl mx-auto p-6 bg-white text-black">
@@ -193,43 +439,220 @@ const handleSubmit = async () => {
 
 
 
-      <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
-        {renderInput('Legal Name', 'legalName')}
-        {renderInput('City', 'city')}
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl"  
+             noValidate
+             onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+               >
+        
+   
 
-
-<div>
-  <label className="block mb-1">Province</label>
-  <select
-    name="province"
-    value={formData.province}
+  
+        <div>
+  <label className="block mb-1" htmlFor="legalName">Legal Name</label>
+  <input
+    id="legalName"
+    name="legalName"
+    type="text"
+    value={formData.legalName}
     onChange={handleChange}
-    className="w-full border rounded px-3 py-2"
-  >
-    <option value="">Select</option>
-    <option value="Alberta">Alberta</option>
-    <option value="British Columbia">British Columbia</option>
-    <option value="Manitoba">Manitoba</option>
-    <option value="New Brunswick">New Brunswick</option>
-    <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
-    <option value="Nova Scotia">Nova Scotia</option>
-    <option value="Ontario">Ontario</option>
-    <option value="Prince Edward Island">Prince Edward Island</option>
-    <option value="Quebec">Quebec</option>
-    <option value="Saskatchewan">Saskatchewan</option>
-  </select>
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        legalName: validateLegalName(formData.legalName) || undefined
+      }))
+    }
+    maxLength={LEGAL_NAME_MAX}
+    // El atributo pattern ayuda al navegador; la validación real ya la hacemos arriba
+    pattern="[\p{L}\p{M}\d ]+"
+    className={`w-full border rounded px-3 py-2 ${errors.legalName ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.legalName}
+    aria-describedby="legalName-error"
+  />
+  {errors.legalName && (
+    <p id="legalName-error" className="text-red-600 text-sm mt-1">{errors.legalName}</p>
+  )}
+</div>
+
+  <div>
+  <label className="block mb-1" htmlFor="city">City</label>
+  <input
+    id="city"
+    name="city"
+    type="text"
+    pattern="[A-Za-zÀ-ÖØ-öø-ÿ0-9 .'\-]+"
+    value={formData.city}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        city: validateCity(formData.city) || undefined
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.city ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.city}
+    aria-describedby="city-error"
+  />
+  {errors.city && (
+    <p id="city-error" className="text-red-600 text-sm mt-1">{errors.city}</p>
+  )}
 </div>
 
 
-        {renderInput('Postal Code', 'postalCode')}
-        {renderInput('Telephone #', 'telephone')}
-        {renderInput('Fax #', 'fax')}
+
+
+
+
+
+
+
+
+<div>
+  <label className="block mb-1" htmlFor="province">Province</label>
+  <select
+    id="province"
+    name="province"
+    value={formData.province}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        province: validateProvince(formData.province) || undefined
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.province ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.province}
+    aria-describedby="province-error"
+  >
+    <option value="">Select</option>
+    {PROVINCES_CA.map(p => (
+      <option key={p} value={p}>{p}</option>
+    ))}
+  </select>
+  {errors.province && (
+    <p id="province-error" className="text-red-600 text-sm mt-1">{errors.province}</p>
+  )}
+</div>
+
+<div>
+  <label className="block mb-1" htmlFor="postalCode">Postal Code</label>
+  <input
+    id="postalCode"
+    name="postalCode"
+    type="text"
+    inputMode="text"
+    autoCapitalize="characters"
+    placeholder="A1A 1A1"
+    maxLength={7} // 6 caracteres + 1 espacio
+    value={formData.postalCode}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        postalCode: validatePostalCode(formData.postalCode) || undefined
+      }))
+    }
+   
+    className={`w-full border rounded px-3 py-2 ${errors.postalCode ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.postalCode}
+    aria-describedby="postalCode-error"
+  />
+  {errors.postalCode && (
+    <p id="postalCode-error" className="text-red-600 text-sm mt-1">{errors.postalCode}</p>
+  )}
+</div>
+
+
+{/* Telephone (required) */}
+<div>
+  <label className="block mb-1" htmlFor="telephone">Telephone</label>
+  <input
+    id="telephone"
+    name="telephone"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.telephone}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      telephone: validatePhoneCA(formData.telephone, true, "Telephone") || undefined
+    }))}
+    // patrón flexible: +1 opcional, separadores opcionales
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.telephone ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.telephone}
+    aria-describedby="telephone-error"
+  />
+  {errors.telephone && <p id="telephone-error" className="text-red-600 text-sm mt-1">{errors.telephone}</p>}
+</div>
+        
+
+
+
+{/* Fax (optional) */}
+<div>
+  <label className="block mb-1" htmlFor="fax">Fax (optional)</label>
+  <input
+    id="fax"
+    name="fax"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.fax}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      fax: validatePhoneCA(formData.fax ?? "", false, "Fax") || undefined
+    }))}
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.fax ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.fax}
+    aria-describedby="fax-error"
+  />
+  {errors.fax && <p id="fax-error" className="text-red-600 text-sm mt-1">{errors.fax}</p>}
+</div>
+
+
+
         {renderInput('Website', 'website')}
         {renderInput('Email', 'email', 'email')}
         {renderInput('Bill To Address', 'billTo', 'text', true)}
         {renderInput('Ship To Address', 'shipTo', 'text', true)}
         {renderInput('Accounts Payable Contact', 'apContact')}
-        {renderInput('A/P Phone', 'apPhone')}
+
+
+
+
+
+
+{/* Accounts Payable Phone (required) */}
+<div>
+  <label className="block mb-1" htmlFor="apPhone">Accounts Payable Phone</label>
+  <input
+    id="apPhone"
+    name="apPhone"
+    type="tel"
+    inputMode="tel"
+    autoComplete="tel"
+    placeholder="(123) 456-7890"
+    value={formData.apPhone}
+    onChange={handleChange}
+    onBlur={() => setErrors(prev => ({
+      ...prev,
+      apPhone: validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone") || undefined
+    }))}
+    pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
+    className={`w-full border rounded px-3 py-2 ${errors.apPhone ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.apPhone}
+    aria-describedby="apphone-error"
+  />
+  {errors.apPhone && <p id="apphone-error" className="text-red-600 text-sm mt-1">{errors.apPhone}</p>}
+</div>
+
+
+
         {renderInput('A/P Email', 'apEmail', 'email')}
 
         <div className="md:col-span-2 mt-8">
@@ -464,7 +887,7 @@ const handleSubmit = async () => {
 
 
 <button
-  type="button"
+  type="submit"
   onClick={handleSubmit}
   className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
 >
