@@ -8,9 +8,12 @@ import { useRouter } from 'next/navigation';
 
 
 const getTodayDate = () => {
-  const today = new Date();
-  return today.toISOString().split('T')[0]; // formato: yyyy-mm-dd
+  const now = new Date();
+  // Ajusta por el offset de tu zona horaria y toma solo la parte de fecha local
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().split('T')[0]; // YYYY-MM-DD en hora local
 };
+
 
 
 export default function Home() {
@@ -47,7 +50,7 @@ export default function Home() {
     accountManager: '',
     bankPhone: '',
     bankFax: '',
-    accountNumber: '',
+    bankAccountNumber: '',
     bankEmail: '',
     tradeCompany1: '',
     tradeAccount1: '',
@@ -80,6 +83,13 @@ export default function Home() {
     fax?: string;
     apEmail?: string;
     paymentTerms?: string;
+    bankName?: string;
+    accountManager?: string;
+    bankPhone?: string;
+    bankEmail?: string;
+    bankAccountNumber?: string;
+    email?: string;
+
   }>({});
 
   const LEGAL_NAME_MAX = 35;
@@ -210,6 +220,15 @@ function validatePaymentTerms(value: string): string | null {
 }
 
 
+function validateRequired(value: string, required: boolean, label: string): string | null {
+  const v = (value ?? "").trim();
+  if (required && !v) return `${label} is required.`;
+  return null;
+}
+
+
+
+
 
 
 
@@ -318,6 +337,19 @@ if (name === "city") {
       return;
     }
     
+
+    if (name === "email") {
+      const cleaned = value.normalize("NFC").replace(/\s/g, ""); // sin espacios
+      setFormData(prev => ({ ...prev, email: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        email: validateEmail(cleaned, false, "Email") || undefined   // false => opcional
+      }));
+      return;
+    }
+
+
+
     if (name === "apEmail") {
       const cleaned = value
         .normalize("NFC")
@@ -336,6 +368,52 @@ if (name === "city") {
       return;
     }
     
+             // LAS SIGUIENTES VALIDACIONES SOLO SE USAN PARA PAYMENT TERMS NET 30
+
+    if (name === "bankName") {
+      const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
+      const required = formData.paymentTerms === "net30";
+      setFormData(prev => ({ ...prev, bankName: cleaned }));
+      setErrors(prev => ({ ...prev, bankName: validateRequired(cleaned, required, "Bank Name") || undefined }));
+      return;
+    }
+    
+    if (name === "accountManager") {
+      const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
+      const required = formData.paymentTerms === "net30";
+      setFormData(prev => ({ ...prev, accountManager: cleaned }));
+      setErrors(prev => ({ ...prev, accountManager: validateRequired(cleaned, required, "Account Manager") || undefined }));
+      return;
+    }
+    
+    if (name === "bankPhone") {
+      const required = formData.paymentTerms === "net30";
+      const normalized = normalizePhoneCA(value); // el mismo que usas para Telephone/AP Phone
+      setFormData(prev => ({ ...prev, bankPhone: normalized }));
+      setErrors(prev => ({ ...prev, bankPhone: validatePhoneCA(normalized, required, "Bank Phone") || undefined }));
+      return;
+    }
+    
+    if (name === "bankEmail") {
+      const required = formData.paymentTerms === "net30";
+      const cleaned = value.normalize("NFC").replace(/\s/g, "");
+      setFormData(prev => ({ ...prev, bankEmail: cleaned }));
+      setErrors(prev => ({ ...prev, bankEmail: validateEmail(cleaned, required, "Bank Email") || undefined }));
+      return;
+    }
+    
+    if (name === "bankAccountNumber") {
+      const digits = onlyDigits(value); // opcional: slice(0, 30) si quieres tope
+      setFormData(prev => ({ ...prev, bankAccountNumber: digits }));
+      // opcional: no marcamos error; es opcional y ya sanitizamos a dígitos
+      setErrors(prev => ({ ...prev, bankAccountNumber: undefined }));
+      return;
+    }
+    
+
+
+
+
 
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -400,15 +478,46 @@ const handleSubmit = async () => {
     return;
   }
 
+
+
+
+
+
+  const emailMsg = validateEmail(formData.email ?? "", true, "Email");  
   const telMsg = validatePhoneCA(formData.telephone, true, "Telephone");
   const apMsg  = validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone");
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, "Fax");
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, "Accounts Payable Email");
   const payMsg = validatePaymentTerms(formData.paymentTerms);
 
+// Solo si Net 30: valida Bank References
+if (formData.paymentTerms === "net30") {
+  const bankNameMsg = validateRequired(formData.bankName, true, "Bank Name");
+  const acctMgrMsg  = validateRequired(formData.accountManager, true, "Account Manager");
+  const bankPhoneMsg = validatePhoneCA(formData.bankPhone, true, "Bank Phone");
+  const bankEmailMsg = validateEmail(formData.bankEmail, true, "Bank Email");
+
+  // Sanitiza Account Number a dígitos antes de enviar
+  const sanitizedAcc = onlyDigits(formData.bankAccountNumber || "");
+  if (sanitizedAcc !== (formData.bankAccountNumber || "")) {
+    setFormData(prev => ({ ...prev, bankAccountNumber: sanitizedAcc }));
+  }
+
+  if (bankNameMsg || acctMgrMsg || bankPhoneMsg || bankEmailMsg) {
+    setErrors(prev => ({
+      ...prev,
+      bankName: bankNameMsg || undefined,
+      accountManager: acctMgrMsg || undefined,
+      bankPhone: bankPhoneMsg || undefined,
+      bankEmail: bankEmailMsg || undefined,
+    }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+}
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -416,6 +525,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
     fax: faxMsg || undefined,
     apEmail: apEmailMsg || undefined,
     paymentTerms: payMsg || undefined,
+    email: emailMsg || undefined,
   }));
   alert("Please correct the errors before submitting.");
   return;
@@ -650,13 +760,39 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
 
 
         {renderInput('Website', 'website')}
-        {renderInput('Email', 'email', 'email')}
+
+
+        <div>
+  <label className="block mb-1" htmlFor="email">Email</label>
+  <input
+    id="email"
+    name="email"
+    type="email"
+    inputMode="email"
+    autoComplete="email"
+    placeholder="user@domain.com"
+    value={formData.email}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        email: validateEmail(formData.email ?? "", true, "Email") || undefined
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.email ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.email}
+    aria-describedby="email-error"
+  />
+  {errors.email && (
+    <p id="email-error" className="text-red-600 text-sm mt-1">{errors.email}</p>
+  )}
+</div>
+
+       
+        
         {renderInput('Bill To Address', 'billTo', 'text', true)}
         {renderInput('Ship To Address', 'shipTo', 'text', true)}
         {renderInput('Accounts Payable Contact', 'apContact')}
-
-
-
 
 
 
@@ -835,16 +971,134 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
   />
 </div>
 
-            <div className="md:col-span-2 mt-8">
-              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Bank References</h2>
-            </div>
-            {renderInput('Bank Name', 'bankName')}
-            {renderInput('Bank Address', 'bankAddress')}
-            {renderInput('Account Manager', 'accountManager')}
-            {renderInput('Bank Phone', 'bankPhone')}
-            {renderInput('Bank Fax', 'bankFax')}
-            {renderInput('Account Number', 'accountNumber')}
-            {renderInput('Bank Email', 'bankEmail', 'email')}
+
+
+            {formData.paymentTerms === "net30" && (
+  <div className="md:col-span-2 mt-6">
+    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Bank References</h2>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Bank Name (required if Net 30) */}
+      <div>
+        <label className="block mb-1" htmlFor="bankName">Bank Name</label>
+        <input
+          id="bankName"
+          name="bankName"
+          type="text"
+          value={formData.bankName}
+          onChange={handleChange}
+          onBlur={() => setErrors(prev => ({
+            ...prev,
+            bankName: validateRequired(formData.bankName, true, "Bank Name") || undefined
+          }))}
+          className={`w-full border rounded px-3 py-2 ${errors.bankName ? 'border-red-600' : ''}`}
+          aria-invalid={!!errors.bankName}
+          aria-describedby="bankName-error"
+        />
+        {errors.bankName && <p id="bankName-error" className="text-red-600 text-sm mt-1">{errors.bankName}</p>}
+      </div>
+
+
+      {renderInput('Bank Address', 'bankAddress')}
+
+
+
+
+      {/* Account Manager (required if Net 30) */}
+      <div>
+        <label className="block mb-1" htmlFor="accountManager">Account Manager</label>
+        <input
+          id="accountManager"
+          name="accountManager"
+          type="text"
+          value={formData.accountManager}
+          onChange={handleChange}
+          onBlur={() => setErrors(prev => ({
+            ...prev,
+            accountManager: validateRequired(formData.accountManager, true, "Account Manager") || undefined
+          }))}
+          className={`w-full border rounded px-3 py-2 ${errors.accountManager ? 'border-red-600' : ''}`}
+          aria-invalid={!!errors.accountManager}
+          aria-describedby="accountManager-error"
+        />
+        {errors.accountManager && <p id="accountManager-error" className="text-red-600 text-sm mt-1">{errors.accountManager}</p>}
+      </div>
+
+      {/* Bank Phone (required if Net 30) */}
+      <div>
+        <label className="block mb-1" htmlFor="bankPhone">Bank Phone</label>
+        <input
+          id="bankPhone"
+          name="bankPhone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="(123) 456-7890"
+          value={formData.bankPhone}
+          onChange={handleChange}
+          onBlur={() => setErrors(prev => ({
+            ...prev,
+            bankPhone: validatePhoneCA(formData.bankPhone, true, "Bank Phone") || undefined
+          }))}
+          className={`w-full border rounded px-3 py-2 ${errors.bankPhone ? 'border-red-600' : ''}`}
+          aria-invalid={!!errors.bankPhone}
+          aria-describedby="bankPhone-error"
+        />
+        {errors.bankPhone && <p id="bankPhone-error" className="text-red-600 text-sm mt-1">{errors.bankPhone}</p>}
+      </div>
+
+      {renderInput('Bank Fax', 'bankFax')}
+
+
+
+
+      {/* Bank Email (required if Net 30) */}
+      <div>
+        <label className="block mb-1" htmlFor="bankEmail">Bank Email</label>
+        <input
+          id="bankEmail"
+          name="bankEmail"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="manager@bank.com"
+          value={formData.bankEmail}
+          onChange={handleChange}
+          onBlur={() => setErrors(prev => ({
+            ...prev,
+            bankEmail: validateEmail(formData.bankEmail, true, "Bank Email") || undefined
+          }))}
+          className={`w-full border rounded px-3 py-2 ${errors.bankEmail ? 'border-red-600' : ''}`}
+          aria-invalid={!!errors.bankEmail}
+          aria-describedby="bankEmail-error"
+        />
+        {errors.bankEmail && <p id="bankEmail-error" className="text-red-600 text-sm mt-1">{errors.bankEmail}</p>}
+      </div>
+
+      {/* Account Number (optional, digits only) */}
+      <div className="md:col-span-2">
+        <label className="block mb-1" htmlFor="bankAccountNumber">Account Number (optional)</label>
+        <input
+          id="bankAccountNumber"
+          name="bankAccountNumber"
+          type="text"
+          inputMode="numeric"
+          placeholder="digits only"
+          value={formData.bankAccountNumber}
+          onChange={handleChange}
+          className="w-full border rounded px-3 py-2"
+        />
+        {/* Sin mensaje: lo sanitizamos a dígitos, no hay validación de longitud */}
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
+
+
 
       {/* Trade References con tipado corregido */}
 
@@ -970,7 +1224,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
 
 <button
   type="submit"
-  onClick={handleSubmit}
+  
   className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
 >
   Submit
