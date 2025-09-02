@@ -610,15 +610,18 @@ function section(title: string): string {
 // Para decidir si TR3 se incluye (solo si el usuario escribió algo)
 
 
-function tradeGroupHasAnyLocal(fd: typeof formData, i: number): boolean {
+
+
+
+
+type FormValues = Record<string, string>;
+
+function tradeGroupHasAnyLocal(fd: FormValues, i: number): boolean {
   const fields = ["Company","Account","Address","Tel","Contact","Email"] as const;
-  return fields.some(f => String(fd[`trade${f}${i}`] ?? "").trim() !== "");
+  return fields.some(f => (fd[`trade${f}${i}`] ?? "").trim() !== "");
 }
 
-
-
-
-function buildEmailHtml(fd: typeof formData, timestamp: string): string {
+function buildEmailHtml(fd: FormValues, timestamp: string): string {
   const rows: string[] = [];
 
   rows.push(section("Request Summary"));
@@ -626,92 +629,71 @@ function buildEmailHtml(fd: typeof formData, timestamp: string): string {
 
   rows.push(section("Customer Information"));
   rows.push(
-    tr("Legal Name", fd.legalName),
-    tr("City", fd.city),
-    tr("Province", fd.province),
-    tr("Postal Code", fd.postalCode),
-    tr("Telephone", fd.telephone),
-    tr("Fax", fd.fax),
-    tr("Website", fd.website),
-    tr("Email", fd.email),
+    tr("Legal Name",  fd["legalName"]),
+    tr("City",        fd["city"]),
+    tr("Province",    fd["province"]),
+    tr("Postal Code", fd["postalCode"]),
+    tr("Telephone",   fd["telephone"]),
+    tr("Fax",         fd["fax"]),
+    tr("Website",     fd["website"]),
+    tr("Email",       fd["email"]),
   );
 
   rows.push(section("Addresses"));
   rows.push(
-    tr("Bill To Address", fd.billTo),
-    tr("Ship To Address", fd.shipTo),
+    tr("Bill To Address", fd["billTo"]),
+    tr("Ship To Address", fd["shipTo"]),
   );
 
   rows.push(section("Accounts Payable"));
   rows.push(
-    tr("AP Contact", fd.apContact),
-    tr("Accounts Payable Phone", fd.apPhone),
-    tr("Accounts Payable Email", fd.apEmail),
-    tr("Payment Terms", fd.paymentTerms === "net30" ? "Net 30" : fd.paymentTerms === "creditCard" ? "Credit Card" : fd.paymentTerms)
+    tr("AP Contact",               fd["apContact"]),
+    tr("Accounts Payable Phone",   fd["apPhone"]),
+    tr("Accounts Payable Email",   fd["apEmail"]),
+    tr("Payment Terms",            fd["paymentTerms"] === "net30" ? "Net 30"
+                                   : fd["paymentTerms"] === "creditCard" ? "Credit Card"
+                                   : fd["paymentTerms"]),
   );
 
-  // (Opcional) Segmentación si la usas en el formulario
-  if (fd.primarySegment || fd.secondarySegment) {
-    rows.push(section("Customer Segmentation"));
-    rows.push(
-      tr("Primary Segment", (fd as any).primarySegment),
-      tr("Secondary Segment", (fd as any).secondarySegment),
-    );
-  }
-
-  // Solo si NET 30: incluye Company Info + Bank + Trade
-  if (fd.paymentTerms === "net30") {
+  if (fd["paymentTerms"] === "net30") {
     rows.push(section("Company Information"));
     rows.push(
-      tr("Type of Organization", (fd as any).typeOfOrganization),
-      tr("Years in Business", (fd as any).yearsInBusiness),
-      tr("Type of Business", (fd as any).typeOfBusiness),
-      tr("Annual Sales", (fd as any).annualSales),
-      tr("Resell / Distribute?", (fd as any).resell),
-      tr("Credit Amount Requested", (fd as any).creditAmount),
-      tr("Products Interested in Purchasing", (fd as any).products),
-      tr("Estimated Initial Order", (fd as any).initialOrder),
-      tr("Expected Annual Purchase", (fd as any).annualPurchase),
-      tr("Taxable", (fd as any).taxable),
-      tr("GST Exempt Certificate #", (fd as any).gstTaxExempt),
-      tr("PST Exempt Certificate #", (fd as any).pstTaxExempt),
+      tr("Type of Organization",          fd["typeOfOrganization"]),
+      tr("Years in Business",             fd["yearsInBusiness"]),
+      tr("Type of Business",              fd["typeOfBusiness"]),
+      tr("Annual Sales",                  fd["annualSales"]),
+      tr("Resell / Distribute?",          fd["resell"]),
+      tr("Credit Amount Requested",       fd["creditAmount"]),
+      tr("Products Interested in Purchasing", fd["products"]),
+      tr("Estimated Initial Order",       fd["initialOrder"]),
+      tr("Expected Annual Purchase",      fd["annualPurchase"]),
+      tr("Taxable",                       fd["taxable"]),
+      tr("GST Exempt Certificate #",      fd["gstTaxExempt"]),
+      tr("PST Exempt Certificate #",      fd["pstTaxExempt"]),
     );
 
     rows.push(section("Bank References"));
     rows.push(
-      tr("Bank Name", (fd as any).bankName),
-      tr("Bank Address", (fd as any).bankAddress),
-      tr("Account Manager", (fd as any).accountManager),
-      tr("Bank Phone", (fd as any).bankPhone),
-      tr("Bank Fax", (fd as any).bankFax),
-      tr("Bank Email", (fd as any).bankEmail),
-      tr("Account Number", (fd as any).bankAccountNumber),
+      tr("Bank Name",        fd["bankName"]),
+      tr("Bank Address",     fd["bankAddress"]),
+      tr("Account Manager",  fd["accountManager"]),
+      tr("Bank Phone",       fd["bankPhone"]),
+      tr("Bank Fax",         fd["bankFax"]),
+      tr("Bank Email",       fd["bankEmail"]),
+      tr("Account Number",   fd["bankAccountNumber"]),
     );
 
     rows.push(section("Trade References"));
-
-    for (let i = 1; i <= 3; i++) {
-      // TR1 y TR2 siempre; TR3 solo si hay algún dato
+    for (const i of [1, 2, 3] as const) {
       if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
-
-      rows.push(`
-        <tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">Trade Reference ${i}</td></tr>
-      `);
+      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">Trade Reference ${i}</td></tr>`);
       rows.push(
-
-
-    tr(`Trade Reference ${i} - Company Name`, fd[`tradeCompany${i}`]),
-    tr(`Trade Reference ${i} - Account No.`,  fd[`tradeAccount${i}`]),
-    tr(`Trade Reference ${i} - Address`,      fd[`tradeAddress${i}`]),
-    tr(`Trade Reference ${i} - Telephone`,    fd[`tradeTel${i}`]),
-    tr(`Trade Reference ${i} - Contact Person`, fd[`tradeContact${i}`]),
-    tr(`Trade Reference ${i} - Email`,        fd[`tradeEmail${i}`]),
-
-
-
-
-
-
+        tr("Company Name",    fd[`tradeCompany${i}`]),
+        tr("Account No.",     fd[`tradeAccount${i}`]),
+        tr("Address",         fd[`tradeAddress${i}`]),
+        tr("Telephone",       fd[`tradeTel${i}`]),
+        tr("Contact Person",  fd[`tradeContact${i}`]),
+        tr("Email",           fd[`tradeEmail${i}`]),
       );
     }
   }
@@ -722,8 +704,6 @@ function buildEmailHtml(fd: typeof formData, timestamp: string): string {
     <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
   </div>`;
 }
-
-
 
 
 
