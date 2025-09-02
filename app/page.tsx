@@ -452,23 +452,26 @@ if (name === "city") {
     if (name === "paymentTerms") {
       setFormData(prev => ({ ...prev, paymentTerms: value }));
       setErrors(prev => {
-        const next = { 
-          ...prev, 
-          paymentTerms: validatePaymentTerms(value) || undefined 
+        // 👇 anota explícitamente el tipo para que exista firma de índice
+        const next: Record<string, string | undefined> = {
+          ...prev,
+          paymentTerms: validatePaymentTerms(value) || undefined,
         };
+    
         if (value === "creditCard") {
-          // limpia errores de Bank
-          ["bankName","accountManager","bankPhone","bankEmail","bankAccountNumber"].forEach(k => delete next[k]);
-          // limpia errores de Trade 1-3
-          ["Company","Account","Address","Tel","Contact","Email"].forEach(f => {
-            [1,2,3].forEach(i => delete next[`trade${f}${i}`]);
+          const bankKeys = ["bankName","accountManager","bankPhone","bankEmail","bankAccountNumber"] as const;
+          bankKeys.forEach(k => { delete next[k]; });
+    
+          const tradeFields = ["Company","Account","Address","Tel","Contact","Email"] as const;
+          ( [1,2,3] as const).forEach(i => {
+            tradeFields.forEach(f => { delete next[`trade${f}${i}`]; });
           });
         }
         return next;
       });
       return;
     }
-    
+        
 
 
 
