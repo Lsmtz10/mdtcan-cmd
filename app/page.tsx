@@ -152,7 +152,7 @@ function validateProvince(value: string): string | null {
 
 
 // Letras permitidas por Canada Post (no D, F, I, O, Q, U)
-const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
+//  const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
 
 // Regex oficial con **espacio obligatorio** entre bloques
 const POSTAL_REGEX = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] \d[ABCEGHJKLMNPRSTVXY]\d$/;
@@ -608,10 +608,15 @@ function section(title: string): string {
 }
 
 // Para decidir si TR3 se incluye (solo si el usuario escribió algo)
+
+
 function tradeGroupHasAnyLocal(fd: typeof formData, i: number): boolean {
-  const fields = ["Company","Account","Address","Tel","Contact","Email"];
-  return fields.some(f => String((fd as any)[`trade${f}${i}`] ?? "").trim() !== "");
+  const fields = ["Company","Account","Address","Tel","Contact","Email"] as const;
+  return fields.some(f => String(fd[`trade${f}${i}`] ?? "").trim() !== "");
 }
+
+
+
 
 function buildEmailHtml(fd: typeof formData, timestamp: string): string {
   const rows: string[] = [];
@@ -693,12 +698,20 @@ function buildEmailHtml(fd: typeof formData, timestamp: string): string {
         <tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">Trade Reference ${i}</td></tr>
       `);
       rows.push(
-        tr("Company Name", (fd as any)[`tradeCompany${i}`]),
-        tr("Account No.", (fd as any)[`tradeAccount${i}`]),
-        tr("Address", (fd as any)[`tradeAddress${i}`]),
-        tr("Telephone", (fd as any)[`tradeTel${i}`]),
-        tr("Contact Person", (fd as any)[`tradeContact${i}`]),
-        tr("Email", (fd as any)[`tradeEmail${i}`]),
+
+
+    tr(`Trade Reference ${i} - Company Name`, fd[`tradeCompany${i}`]),
+    tr(`Trade Reference ${i} - Account No.`,  fd[`tradeAccount${i}`]),
+    tr(`Trade Reference ${i} - Address`,      fd[`tradeAddress${i}`]),
+    tr(`Trade Reference ${i} - Telephone`,    fd[`tradeTel${i}`]),
+    tr(`Trade Reference ${i} - Contact Person`, fd[`tradeContact${i}`]),
+    tr(`Trade Reference ${i} - Email`,        fd[`tradeEmail${i}`]),
+
+
+
+
+
+
       );
     }
   }
