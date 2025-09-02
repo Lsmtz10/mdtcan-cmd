@@ -73,7 +73,7 @@ export default function Home() {
   })
   
 
-  const [errors, setErrors] = useState<{
+/*   const [errors, setErrors] = useState<{
     legalName?: string;
     city?: string;
     province?: string;
@@ -89,8 +89,18 @@ export default function Home() {
     bankEmail?: string;
     bankAccountNumber?: string;
     email?: string;
-
   }>({});
+ */
+
+
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+
+
+
+
+
+
+
 
   const LEGAL_NAME_MAX = 35;
   // Letras Unicode (incluye acentos) + marcas combinadas + dígitos + espacios
@@ -139,9 +149,6 @@ function validateProvince(value: string): string | null {
   if (!PROVINCES_SET.has(value)) return "Select a valid province.";
   return null;
 }
-
-
-
 
 
 // Letras permitidas por Canada Post (no D, F, I, O, Q, U)
@@ -227,6 +234,63 @@ function validateRequired(value: string, required: boolean, label: string): stri
 }
 
 
+const TRADE_FIELDS = ['Company','Account','Address','Tel','Contact','Email'] as const;
+
+function tradeGroupHasAny(i: number): boolean {
+  return TRADE_FIELDS.some(f => ((formData[`trade${f}${i}`] ?? '').trim() !== ''));
+}
+function tradeIsRequired(i: number): boolean {
+  // 1 y 2 obligatorios; 3 solo si el usuario empezó a llenarlo
+  return i === 1 || i === 2 || tradeGroupHasAny(i);
+}
+
+// Permite pasar un valor ya “limpio” cuando validamos en onChange
+function validateTradeField(name: string, override?: string): string | null {
+  const m = name.match(/^trade(Company|Account|Address|Tel|Contact|Email)([123])$/);
+  if (!m) return null;
+
+  const field = m[1] as typeof TRADE_FIELDS[number];
+  const idx = Number(m[2]);
+  const required = tradeIsRequired(idx);
+  const raw = (override ?? formData[name] ?? '').trim();
+
+  switch (field) {
+    case 'Tel':
+      return validatePhoneCA(raw, required, `Trade Ref ${idx} Telephone`);
+    case 'Email':
+      return validateEmail(raw, required, `Trade Ref ${idx} Email`);
+    case 'Account': {
+      const digits = onlyDigits(raw);
+      // si el usuario metió letras, las limpiamos en el handleChange
+      return required && !digits ? `Trade Ref ${idx} Account No. is required.` : null;
+    }
+    case 'Company':
+      return validateRequired(raw, required, `Trade Ref ${idx} Company`);
+    case 'Address':
+      return validateRequired(raw, required, `Trade Ref ${idx} Address`);
+    case 'Contact':
+      return validateRequired(raw, required, `Trade Ref ${idx} Contact Person`);
+    default:
+      return null;
+  }
+}
+
+
+
+function tradeLabel(field: string): string {
+  switch (field) {
+    case 'Tel':     return 'Telephone';
+    case 'Contact': return 'Contact Person';
+    case 'Account': return 'Account No.';
+    case 'Email':   return 'Email';
+    case 'Address': return 'Address';
+    default:        return 'Company Name'; // 'Company'
+  }
+}
+
+
+
+
 
 
 
@@ -296,6 +360,19 @@ function handlePhoneFieldChange(
       return;
     }
    
+
+    if (name === "billTo") {
+      const v = value.normalize("NFC");
+      setFormData(prev => ({ ...prev, billTo: v }));
+      setErrors(prev => ({
+        ...prev,
+        billTo: validateRequired(v, true, "Bill To Address") || undefined,
+      }));
+      return;
+    }
+    
+
+
 
 // --- handleChange (sustituye SOLO el bloque de city) ---
 if (name === "city") {
@@ -411,6 +488,29 @@ if (name === "city") {
     }
     
 
+// --- Trade References: detección genérica por nombre ---
+const t = name.match(/^trade(Company|Account|Address|Tel|Contact|Email)([123])$/);
+if (t) {
+  const field = t[1];
+  let newVal = value;
+
+  if (field === 'Tel') {
+    newVal = normalizePhoneCA(value);
+  } else if (field === 'Email') {
+    newVal = value.normalize('NFC').replace(/\s/g, '');
+  } else if (field === 'Account') {
+    newVal = onlyDigits(value); // solo dígitos, sin tope de longitud
+  } else {
+    newVal = value.normalize('NFC').replace(/\s{2,}/g, ' ');
+  }
+
+  setFormData(prev => ({ ...prev, [name]: newVal }));
+
+  const msg = validateTradeField(name, newVal);
+  setErrors(prev => ({ ...prev, [name]: msg || undefined }));
+
+  return;
+}
 
 
 
@@ -458,6 +558,15 @@ const handleSubmit = async () => {
     return;
   }
 
+
+  const billToMsg = validateRequired(formData.billTo ?? "", true, "Bill To Address");
+  if (billToMsg) {
+    setErrors(prev => ({ ...prev, billTo: billToMsg }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+
+
   const cityMsg = validateCity(formData.city);
   const provMsg = validateProvince(formData.province);
   
@@ -477,10 +586,6 @@ const handleSubmit = async () => {
     alert("Please correct the errors before submitting.");
     return;
   }
-
-
-
-
 
 
   const emailMsg = validateEmail(formData.email ?? "", true, "Email");  
@@ -530,6 +635,28 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
   alert("Please correct the errors before submitting.");
   return;
 }
+
+
+// --- Trade References: 1 y 2 siempre; 3 solo si empezó a llenarse ---
+const tradeErrs: Record<string, string | undefined> = {};
+[1, 2, 3].forEach((idx) => {
+  const req = tradeIsRequired(idx);
+  if (!req && !tradeGroupHasAny(idx)) return; // TR3 vacío por completo -> lo ignoramos
+
+  for (const f of TRADE_FIELDS) {
+    const name = `trade${f}${idx}`;
+    const msg = validateTradeField(name);
+    if (msg) tradeErrs[name] = msg;
+  }
+});
+
+if (Object.keys(tradeErrs).length > 0) {
+  setErrors(prev => ({ ...prev, ...tradeErrs }));
+  alert("Please correct the errors before submitting.");
+  return;
+}
+
+
 
 
 
@@ -788,9 +915,35 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
   )}
 </div>
 
-       
-        
-        {renderInput('Bill To Address', 'billTo', 'text', true)}
+
+
+
+<div>
+  <label className="block mb-1" htmlFor="billTo">Bill To Address</label>
+  <textarea
+    id="billTo"
+    name="billTo"
+    rows={2}
+    value={formData.billTo}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        billTo: validateRequired(formData.billTo, true, "Bill To Address") || undefined,
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.billTo ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.billTo}
+    aria-describedby="billTo-error"
+  />
+  {errors.billTo && (
+    <p id="billTo-error" className="text-red-600 text-sm mt-1">{errors.billTo}</p>
+  )}
+</div>
+
+
+
+
         {renderInput('Ship To Address', 'shipTo', 'text', true)}
         {renderInput('Accounts Payable Contact', 'apContact')}
 
@@ -1110,18 +1263,47 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
                   <div key={i} className="border rounded p-4">
                     <h3 className="text-lg font-semibold mb-2">Trade Reference {i}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {['Company', 'Account', 'Address', 'Tel', 'Contact', 'Email'].map((field) => (
-                        <div key={field}>
-                          <label className="block mb-1">{field === 'Tel' ? 'Telephone' : field === 'Contact' ? 'Contact Person' : field === 'Account' ? 'Account No.' : field + ' Name'}</label>
-                          <input
-                            type={field === 'Email' ? 'email' : 'text'}
-                            name={`trade${field}${i}`}
-                            value={(formData as Record<string, string>)[`trade${field}${i}`] || ''}
-                            onChange={handleChange}
-                            className="w-full border rounded px-3 py-2"
-                          />
-                        </div>
-                      ))}
+
+
+
+                    {['Company', 'Account', 'Address', 'Tel', 'Contact', 'Email'].map((field) => {
+  const name = `trade${field}${i}` as const;
+  const isTel = field === 'Tel';
+  const isEmail = field === 'Email';
+
+  return (
+    <div key={field}>
+      <label className="block mb-1" htmlFor={name}>{tradeLabel(field)}</label>
+      <input
+        id={name}
+        type={isEmail ? 'email' : isTel ? 'tel' : 'text'}
+        name={name}
+        value={formData[name] || ''}
+        onChange={handleChange}
+        onBlur={() =>
+          setErrors(prev => ({
+            ...prev,
+            [name]: validateTradeField(name) || undefined,
+          }))
+        }
+        placeholder={isTel ? '(123) 456-7890' : undefined}
+        inputMode={isTel ? 'tel' : isEmail ? 'email' : undefined}
+        className={`w-full border rounded px-3 py-2 ${errors[name] ? 'border-red-600' : ''}`}
+        aria-invalid={!!errors[name]}
+        aria-describedby={`${name}-error`}
+      />
+      {errors[name] && (
+        <p id={`${name}-error`} className="text-red-600 text-sm mt-1">{errors[name]}</p>
+      )}
+    </div>
+  );
+})}
+
+
+
+
+
+
                     </div>
                   </div>
                 ))}
