@@ -152,7 +152,7 @@ function validateProvince(value: string): string | null {
 
 
 // Letras permitidas por Canada Post (no D, F, I, O, Q, U)
-const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
+//  const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
 
 // Regex oficial con **espacio obligatorio** entre bloques
 const POSTAL_REGEX = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] \d[ABCEGHJKLMNPRSTVXY]\d$/;
@@ -239,10 +239,19 @@ const TRADE_FIELDS = ['Company','Account','Address','Tel','Contact','Email'] as 
 function tradeGroupHasAny(i: number): boolean {
   return TRADE_FIELDS.some(f => ((formData[`trade${f}${i}`] ?? '').trim() !== ''));
 }
+
+
 function tradeIsRequired(i: number): boolean {
-  // 1 y 2 obligatorios; 3 solo si el usuario empezó a llenarlo
+  // SOLO si Net 30
+  if (formData.paymentTerms !== "net30") return false;
+  // 1 y 2 obligatorias; 3 si el usuario empezó a llenarla
   return i === 1 || i === 2 || tradeGroupHasAny(i);
 }
+
+
+
+
+
 
 // Permite pasar un valor ya “limpio” cuando validamos en onChange
 function validateTradeField(name: string, override?: string): string | null {
@@ -438,13 +447,34 @@ if (name === "city") {
       }));
       return;
     }
-       
+   
+
     if (name === "paymentTerms") {
       setFormData(prev => ({ ...prev, paymentTerms: value }));
-      setErrors(prev => ({ ...prev, paymentTerms: validatePaymentTerms(value) || undefined }));
+      setErrors(prev => {
+        // 👇 anota explícitamente el tipo para que exista firma de índice
+        const next: Record<string, string | undefined> = {
+          ...prev,
+          paymentTerms: validatePaymentTerms(value) || undefined,
+        };
+    
+        if (value === "creditCard") {
+          const bankKeys = ["bankName","accountManager","bankPhone","bankEmail","bankAccountNumber"] as const;
+          bankKeys.forEach(k => { delete next[k]; });
+    
+          const tradeFields = ["Company","Account","Address","Tel","Contact","Email"] as const;
+          ( [1,2,3] as const).forEach(i => {
+            tradeFields.forEach(f => { delete next[`trade${f}${i}`]; });
+          });
+        }
+        return next;
+      });
       return;
     }
-    
+        
+
+
+
              // LAS SIGUIENTES VALIDACIONES SOLO SE USAN PARA PAYMENT TERMS NET 30
 
     if (name === "bankName") {
@@ -548,6 +578,143 @@ if (t) {
 const router = useRouter();
 
 
+//  EL SIGUIENTE CODIGO ES PARA ARMAR EL EMAIL CON FORMATO VISUALMENTE AMIGABLE
+
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function cell(v: unknown): string {
+  return esc(v).replace(/\n/g, "<br>");
+}
+
+function tr(label: string, value: unknown): string {
+  const val = String(value ?? "").trim();
+  if (!val) return ""; // no imprimas filas vacías
+  return `
+    <tr>
+      <th style="text-align:left;border:1px solid #e5e7eb;padding:8px;background:#f9fafb;width:40%">${esc(label)}</th>
+      <td style="border:1px solid #e5e7eb;padding:8px">${cell(val)}</td>
+    </tr>`;
+}
+
+function section(title: string): string {
+  return `
+    <tr>
+      <td colspan="2" style="background:#eef2ff;font-weight:600;padding:10px;border:1px solid #e5e7eb">${esc(title)}</td>
+    </tr>`;
+}
+
+// Para decidir si TR3 se incluye (solo si el usuario escribió algo)
+
+
+
+
+
+
+type FormValues = Record<string, string>;
+
+function tradeGroupHasAnyLocal(fd: FormValues, i: number): boolean {
+  const fields = ["Company","Account","Address","Tel","Contact","Email"] as const;
+  return fields.some(f => (fd[`trade${f}${i}`] ?? "").trim() !== "");
+}
+
+function buildEmailHtml(fd: FormValues, timestamp: string): string {
+  const rows: string[] = [];
+
+  rows.push(section("Request Summary"));
+  rows.push(tr("Submitted At", timestamp));
+
+  rows.push(section("Customer Information"));
+  rows.push(
+    tr("Legal Name",  fd["legalName"]),
+    tr("City",        fd["city"]),
+    tr("Province",    fd["province"]),
+    tr("Postal Code", fd["postalCode"]),
+    tr("Telephone",   fd["telephone"]),
+    tr("Fax",         fd["fax"]),
+    tr("Website",     fd["website"]),
+    tr("Email",       fd["email"]),
+  );
+
+  rows.push(section("Addresses"));
+  rows.push(
+    tr("Bill To Address", fd["billTo"]),
+    tr("Ship To Address", fd["shipTo"]),
+  );
+
+  rows.push(section("Accounts Payable"));
+  rows.push(
+    tr("AP Contact",               fd["apContact"]),
+    tr("Accounts Payable Phone",   fd["apPhone"]),
+    tr("Accounts Payable Email",   fd["apEmail"]),
+    tr("Payment Terms",            fd["paymentTerms"] === "net30" ? "Net 30"
+                                   : fd["paymentTerms"] === "creditCard" ? "Credit Card"
+                                   : fd["paymentTerms"]),
+  );
+
+  if (fd["paymentTerms"] === "net30") {
+    rows.push(section("Company Information"));
+    rows.push(
+      tr("Type of Organization",          fd["typeOfOrganization"]),
+      tr("Years in Business",             fd["yearsInBusiness"]),
+      tr("Type of Business",              fd["typeOfBusiness"]),
+      tr("Annual Sales",                  fd["annualSales"]),
+      tr("Resell / Distribute?",          fd["resell"]),
+      tr("Credit Amount Requested",       fd["creditAmount"]),
+      tr("Products Interested in Purchasing", fd["products"]),
+      tr("Estimated Initial Order",       fd["initialOrder"]),
+      tr("Expected Annual Purchase",      fd["annualPurchase"]),
+      tr("Taxable",                       fd["taxable"]),
+      tr("GST Exempt Certificate #",      fd["gstTaxExempt"]),
+      tr("PST Exempt Certificate #",      fd["pstTaxExempt"]),
+    );
+
+    rows.push(section("Bank References"));
+    rows.push(
+      tr("Bank Name",        fd["bankName"]),
+      tr("Bank Address",     fd["bankAddress"]),
+      tr("Account Manager",  fd["accountManager"]),
+      tr("Bank Phone",       fd["bankPhone"]),
+      tr("Bank Fax",         fd["bankFax"]),
+      tr("Bank Email",       fd["bankEmail"]),
+      tr("Account Number",   fd["bankAccountNumber"]),
+    );
+
+    rows.push(section("Trade References"));
+    for (const i of [1, 2, 3] as const) {
+      if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
+      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">Trade Reference ${i}</td></tr>`);
+      rows.push(
+        tr("Company Name",    fd[`tradeCompany${i}`]),
+        tr("Account No.",     fd[`tradeAccount${i}`]),
+        tr("Address",         fd[`tradeAddress${i}`]),
+        tr("Telephone",       fd[`tradeTel${i}`]),
+        tr("Contact Person",  fd[`tradeContact${i}`]),
+        tr("Email",           fd[`tradeEmail${i}`]),
+      );
+    }
+  }
+
+  return `
+  <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;color:#111827">
+    <h2 style="margin:0 0 12px 0">Customer Application Form – Canada</h2>
+    <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
+  </div>`;
+}
+
+
+
+
+
+
+
+
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
 
@@ -637,6 +804,10 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
 }
 
 
+
+
+// --- Trade References: validar SOLO si Net 30 ---
+if (formData.paymentTerms === "net30") {
 // --- Trade References: 1 y 2 siempre; 3 solo si empezó a llenarse ---
 const tradeErrs: Record<string, string | undefined> = {};
 [1, 2, 3].forEach((idx) => {
@@ -655,29 +826,33 @@ if (Object.keys(tradeErrs).length > 0) {
   alert("Please correct the errors before submitting.");
   return;
 }
+}
 
 
 
+// Fallback en texto (manténlo por compatibilidad con tu template actual)
+const formattedData = Object.entries(formData)
+  .map(([key, value]) => `${key}: ${value}`)
+  .join('\n');
 
+// Construye el HTML con etiquetas amigables y secciones condicionales
+const formHtml = buildEmailHtml(formData, timestamp);
 
-  const formattedData = Object.entries(formData)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join('\n');
+try {
+  await emailjs.send(
+    'service_i6is1vl',     // Service ID
+    'template_yuvc7fc',    // Template ID
+    {
+      formHtml,            // <-- usa esto en tu plantilla
+      formData: formattedData, // <-- respaldo de texto
+      timestamp: timestamp,
+    },
+    'BhNrfAyGnu7vx_rYL'    // Public Key
+  );
 
-  try {
-     await emailjs.send(
-      'service_i6is1vl',           // tu Service ID
-      'template_yuvc7fc',           // tu Template ID
-      {
-        formData: formattedData,
-        timestamp: timestamp,
-      },
-      'BhNrfAyGnu7vx_rYL'          // tu Public Key
+  router.push('/confirmation');
 
-    );
-
-    router.push('/confirmation');
-
+  
     
 } catch (error: unknown) {
   let errorMessage = 'Unknown error';
