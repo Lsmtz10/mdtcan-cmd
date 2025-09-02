@@ -78,8 +78,6 @@ export default function Home() {
     telephone?: string;
     apPhone?: string;
     fax?: string;
-    apEmail?: string;
-    paymentTerms?: string;
   }>({});
 
   const LEGAL_NAME_MAX = 35;
@@ -190,29 +188,6 @@ function validatePhoneCA(value: string, required: boolean, fieldLabel: string): 
   return null;
 }
 
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateEmail(value: string, required: boolean, label: string): string | null {
-  const v = value.trim();
-  if (!v) return required ? `${label} is required.` : null;
-  if (!EMAIL_REGEX.test(v)) return `Enter a valid email address.`;
-  return null;
-}
-
-const PAYMENT_TERMS = ["creditCard", "net30"] as const;
-const PAYMENT_TERMS_SET = new Set<string>(PAYMENT_TERMS);
-
-function validatePaymentTerms(value: string): string | null {
-  if (!value) return "Payment Terms selection is required.";
-  if (!PAYMENT_TERMS_SET.has(value)) return "Select a valid option.";
-  return null;
-}
-
-
-
-
-
 function handlePhoneFieldChange(
   field: "telephone" | "apPhone" | "fax",
   required: boolean,
@@ -318,24 +293,8 @@ if (name === "city") {
       return;
     }
     
-    if (name === "apEmail") {
-      const cleaned = value
-        .normalize("NFC")
-        .replace(/\s/g, ""); // quita espacios accidentales
-      setFormData(prev => ({ ...prev, apEmail: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        apEmail: validateEmail(cleaned, true, "Accounts Payable Email") || undefined
-      }));
-      return;
-    }
-       
-    if (name === "paymentTerms") {
-      setFormData(prev => ({ ...prev, paymentTerms: value }));
-      setErrors(prev => ({ ...prev, paymentTerms: validatePaymentTerms(value) || undefined }));
-      return;
-    }
-    
+
+
 
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -403,23 +362,19 @@ const handleSubmit = async () => {
   const telMsg = validatePhoneCA(formData.telephone, true, "Telephone");
   const apMsg  = validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone");
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, "Fax");
-  const apEmailMsg = validateEmail(formData.apEmail ?? "", true, "Accounts Payable Email");
-  const payMsg = validatePaymentTerms(formData.paymentTerms);
+  
+  if (telMsg || apMsg || faxMsg) {
+    setErrors(prev => ({
+      ...prev,
+      telephone: telMsg || undefined,
+      apPhone: apMsg || undefined,
+      fax: faxMsg || undefined,
+    }));
+    alert("Please correct the errors before submitting.");
+    return;
+  }
+  
 
-
-
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
-  setErrors(prev => ({
-    ...prev,
-    telephone: telMsg || undefined,
-    apPhone: apMsg || undefined,
-    fax: faxMsg || undefined,
-    apEmail: apEmailMsg || undefined,
-    paymentTerms: payMsg || undefined,
-  }));
-  alert("Please correct the errors before submitting.");
-  return;
-}
 
 
 
@@ -460,6 +415,12 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
 }
 
 };
+
+
+
+
+
+
 
 
 
@@ -535,6 +496,12 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
     <p id="city-error" className="text-red-600 text-sm mt-1">{errors.city}</p>
   )}
 </div>
+
+
+
+
+
+
 
 
 
@@ -686,82 +653,33 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg) {
 
 
 
- <div>
-   <label className="block mb-1" htmlFor="apEmail">Accounts Payable Email</label>
-   <input
-     id="apEmail"
-     name="apEmail"
-     type="email"
-     inputMode="email"
-     autoComplete="email"
-     placeholder="ap@company.com"
-     value={formData.apEmail}
-     onChange={handleChange}
-     onBlur={() =>
-       setErrors(prev => ({
-         ...prev,
-         apEmail: validateEmail(formData.apEmail ?? "", true, "Accounts Payable Email") || undefined
-       }))
-     }
-     className={`w-full border rounded px-3 py-2 ${errors.apEmail ? 'border-red-600' : ''}`}
-     aria-invalid={!!errors.apEmail}
-     aria-describedby="apEmail-error"
-   />
-   {errors.apEmail && (
-     <p id="apEmail-error" className="text-red-600 text-sm mt-1">{errors.apEmail}</p>
-   )}
- </div>
+        {renderInput('A/P Email', 'apEmail', 'email')}
 
-
- <div className="md:col-span-2 mt-6">
-  <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Payment Terms</h2>
-  <div role="radiogroup" aria-labelledby="payment-terms-label" className="flex flex-col gap-2">
-    <span id="payment-terms-label" className="sr-only">Payment Terms</span>
-
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="creditCard"
-        checked={formData.paymentTerms === "creditCard"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-        aria-invalid={!!errors.paymentTerms}
-      />
-      Credit Card (Pay upon order)
-    </label>
-
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="net30"
-        checked={formData.paymentTerms === "net30"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-        aria-invalid={!!errors.paymentTerms}
-      />
-      Net 30 Terms
-    </label>
-  </div>
-
-  {errors.paymentTerms && (
-    <p className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
-  )}
-</div>
-
-
-
+        <div className="md:col-span-2 mt-8">
+          <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Payment Terms</h2>
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="paymentTerms"
+              value="creditCard"
+              checked={formData.paymentTerms === 'creditCard'}
+              onChange={handleChange}
+              className="mr-2"
+            />
+            Credit Card (Pay upon order)
+          </label>
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="paymentTerms"
+              value="net30"
+              checked={formData.paymentTerms === 'net30'}
+              onChange={handleChange}
+              className="mr-2"
+            />
+            Net 30 Terms
+          </label>
+        </div>
 
         {formData.paymentTerms === 'net30' && (
           <>
