@@ -1,0 +1,10 @@
+Lifecycle scripts included in mdtcan-cmd@0.1.0:
+  start
+    next start
+available via `npm run-script`:
+  dev
+    next dev
+  build
+    next build
+  lint
+    next lint
