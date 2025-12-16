@@ -333,7 +333,7 @@ function handlePhoneFieldChange(
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
 }
 
-  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<string, { value: string; label: string }[]>;
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<string, ReadonlyArray<{ value: string; label: string }>>;
 
   
 
@@ -843,7 +843,7 @@ try {
   
     
 } catch (error: unknown) {
-  let errorMessage = messages.alerts.unknownError;
+  let errorMessage: string = messages.alerts.unknownError;
 
   if (
     typeof error === 'object' &&
