@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import emailjs from '@emailjs/browser'
 
 import { useRouter } from 'next/navigation';
+import { MESSAGES, Locale } from './locales';
 
 
 const getTodayDate = () => {
@@ -17,6 +18,9 @@ const getTodayDate = () => {
 
 
 export default function Home() {
+  const [locale, setLocale] = useState<Locale>('en');
+  const messages = MESSAGES[locale];
+
   const [formData, setFormData] = useState<Record<string, string>>({
 
     legalName: '',
@@ -95,10 +99,15 @@ export default function Home() {
 
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
+  useEffect(() => {
+    setErrors({});
+  }, [locale]);
 
-
-
-
+  const formatMessage = (template: string, replacements: Record<string, string | number>) =>
+    Object.entries(replacements).reduce(
+      (acc, [key, value]) => acc.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+      template
+    );
 
 
 
@@ -108,9 +117,9 @@ export default function Home() {
   
   function validateLegalName(value: string): string | null {
     const v = value.trim();
-    if (!v) return "Legal Name is required.";
-    if (v.length > LEGAL_NAME_MAX) return `Max length is ${LEGAL_NAME_MAX} characters.`;
-    if (!LEGAL_NAME_ALLOWED.test(v)) return "Only letters, numbers, and spaces are allowed.";
+    if (!v) return messages.errors.legalNameRequired;
+    if (v.length > LEGAL_NAME_MAX) return formatMessage(messages.errors.maxLength, { max: LEGAL_NAME_MAX });
+    if (!LEGAL_NAME_ALLOWED.test(v)) return messages.errors.onlyLettersNumbersSpaces;
     return null;
   }
 
@@ -128,9 +137,9 @@ const CITY_STRIP = /[^ \p{L}\p{M}\d.'-]/gu;
 
 function validateCity(value: string): string | null {
   const v = value.trim();
-  if (!v) return "City is required.";
+  if (!v) return messages.errors.cityRequired;
   if (!CITY_ALLOWED.test(v)) {
-    return "Only letters, numbers, spaces, hyphens (-), apostrophes (’ or '), and periods (.) are allowed.";
+    return messages.errors.cityAllowedChars;
   }
   return null;
 }
@@ -145,8 +154,8 @@ const PROVINCES_CA = [
 const PROVINCES_SET = new Set<string>(PROVINCES_CA);
 
 function validateProvince(value: string): string | null {
-  if (!value) return "Province is required.";
-  if (!PROVINCES_SET.has(value)) return "Select a valid province.";
+  if (!value) return messages.errors.provinceRequired;
+  if (!PROVINCES_SET.has(value)) return messages.errors.invalidProvince;
   return null;
 }
 
@@ -166,10 +175,8 @@ function normalizePostalInput(raw: string): string {
 
 function validatePostalCode(value: string): string | null {
   const v = value.trim().toUpperCase();
-  if (!v) return "Postal Code is required.";
-  if (!POSTAL_REGEX.test(v)) {
-    return "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXY are valid.";
-  }
+  if (!v) return messages.errors.postalCodeRequired;
+  if (!POSTAL_REGEX.test(v)) return messages.errors.postalCodeFormat;
   return null;
 }
 
@@ -197,11 +204,11 @@ function normalizePhoneCA(raw: string): string {
 function validatePhoneCA(value: string, required: boolean, fieldLabel: string): string | null {
   const digits = onlyDigits(value);
   if (!digits) {
-    return required ? `${fieldLabel} is required.` : null;
+    return required ? `${fieldLabel} ${messages.errors.requiredSuffix}` : null;
   }
   // Quita 1 inicial si sobrara por copy/paste
   const core = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-  if (core.length !== 10) return `${fieldLabel} must have 10 digits.`;
+  if (core.length !== 10) return formatMessage(messages.errors.phone10Digits, { label: fieldLabel });
   // (Opcional) Reglas NANP más estrictas:
   // if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(core)) return `${fieldLabel} is not a valid Canadian number.`;
   return null;
@@ -212,8 +219,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateEmail(value: string, required: boolean, label: string): string | null {
   const v = value.trim();
-  if (!v) return required ? `${label} is required.` : null;
-  if (!EMAIL_REGEX.test(v)) return `Enter a valid email address.`;
+  if (!v) return required ? `${label} ${messages.errors.requiredSuffix}` : null;
+  if (!EMAIL_REGEX.test(v)) return messages.errors.invalidEmail;
   return null;
 }
 
@@ -221,15 +228,15 @@ const PAYMENT_TERMS = ["creditCard", "net30"] as const;
 const PAYMENT_TERMS_SET = new Set<string>(PAYMENT_TERMS);
 
 function validatePaymentTerms(value: string): string | null {
-  if (!value) return "Payment Terms selection is required.";
-  if (!PAYMENT_TERMS_SET.has(value)) return "Select a valid option.";
+  if (!value) return messages.errors.paymentTermsRequired;
+  if (!PAYMENT_TERMS_SET.has(value)) return messages.errors.invalidOption;
   return null;
 }
 
 
 function validateRequired(value: string, required: boolean, label: string): string | null {
   const v = (value ?? "").trim();
-  if (required && !v) return `${label} is required.`;
+  if (required && !v) return `${label} ${messages.errors.requiredSuffix}`;
   return null;
 }
 
@@ -262,23 +269,26 @@ function validateTradeField(name: string, override?: string): string | null {
   const idx = Number(m[2]);
   const required = tradeIsRequired(idx);
   const raw = (override ?? formData[name] ?? '').trim();
+  const tradeGroupLabel = formatMessage(messages.fields.trade.groupTitle, { idx });
 
   switch (field) {
     case 'Tel':
-      return validatePhoneCA(raw, required, `Trade Ref ${idx} Telephone`);
+      return validatePhoneCA(raw, required, `${tradeGroupLabel} ${messages.fields.trade.tel.label}`);
     case 'Email':
-      return validateEmail(raw, required, `Trade Ref ${idx} Email`);
+      return validateEmail(raw, required, `${tradeGroupLabel} ${messages.fields.trade.email.label}`);
     case 'Account': {
       const digits = onlyDigits(raw);
       // si el usuario metió letras, las limpiamos en el handleChange
-      return required && !digits ? `Trade Ref ${idx} Account No. is required.` : null;
+      return required && !digits
+        ? formatMessage(messages.errors.tradeRefAccountRequired, { idx })
+        : null;
     }
     case 'Company':
-      return validateRequired(raw, required, `Trade Ref ${idx} Company`);
+      return validateRequired(raw, required, `${tradeGroupLabel} ${messages.fields.trade.company.label}`);
     case 'Address':
-      return validateRequired(raw, required, `Trade Ref ${idx} Address`);
+      return validateRequired(raw, required, `${tradeGroupLabel} ${messages.fields.trade.address.label}`);
     case 'Contact':
-      return validateRequired(raw, required, `Trade Ref ${idx} Contact Person`);
+      return required ? formatMessage(messages.errors.tradeRefContactRequired, { idx }) : null;
     default:
       return null;
   }
@@ -287,13 +297,14 @@ function validateTradeField(name: string, override?: string): string | null {
 
 
 function tradeLabel(field: string): string {
+  const tradeFields = messages.fields.trade;
   switch (field) {
-    case 'Tel':     return 'Telephone';
-    case 'Contact': return 'Contact Person';
-    case 'Account': return 'Account No.';
-    case 'Email':   return 'Email';
-    case 'Address': return 'Address';
-    default:        return 'Company Name'; // 'Company'
+    case 'Tel':     return tradeFields.tel.label;
+    case 'Contact': return tradeFields.contact.label;
+    case 'Account': return tradeFields.account.label;
+    case 'Email':   return tradeFields.email.label;
+    case 'Address': return tradeFields.address.label;
+    default:        return tradeFields.company.label; // 'Company'
   }
 }
 
@@ -312,44 +323,17 @@ function handlePhoneFieldChange(
 ) {
   const normalized = normalizePhoneCA(value);
   setFormData(prev => ({ ...prev, [field]: normalized }));
-  const msg = validatePhoneCA(normalized, required, field === "fax" ? "Fax" : field === "telephone" ? "Telephone" : "Accounts Payable Phone");
+  const label =
+    field === "fax"
+      ? messages.fields.fax.label
+      : field === "telephone"
+        ? messages.fields.telephone.label
+        : messages.fields.apPhone.label;
+  const msg = validatePhoneCA(normalized, required, label);
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
 }
 
-
-
-
-
-  const secondaryOptions: { [key: string]: string[] } = {
-    hospital: [
-      'Public Hospital',
-    ],
-    alternate: [
-      'Blood Service / Private Lab',
-      'Dentist Office',
-      'Pharmacy',
-      'Veterinary Office',
-
-
-    ],
-    continuing: [
-      'Diagnostic Imaging Center',
-      'Emergency Medical',
-      'Extended Care Facility',
-      'Government',
-      'Health Miscellaneous',
-      'Home Health Care Provider',
-      'Public Clinic',
-      'Physician Office / Clinic',
-      'Respiratory Services',
-      'School',
-      'Sleep Clinic',
-      'Surgical Center',
-      'Transitional Care (Rehab)',
-      'University Hospital/Medical Center',
-
-    ],
-  }
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<string, { value: string; label: string }[]>;
 
   
 
@@ -375,7 +359,7 @@ function handlePhoneFieldChange(
       setFormData(prev => ({ ...prev, billTo: v }));
       setErrors(prev => ({
         ...prev,
-        billTo: validateRequired(v, true, "Bill To Address") || undefined,
+        billTo: validateRequired(v, true, messages.fields.billTo.label) || undefined,
       }));
       return;
     }
@@ -429,7 +413,7 @@ if (name === "city") {
       setFormData(prev => ({ ...prev, email: cleaned }));
       setErrors(prev => ({
         ...prev,
-        email: validateEmail(cleaned, false, "Email") || undefined   // false => opcional
+        email: validateEmail(cleaned, false, messages.fields.email.label) || undefined   // false => opcional
       }));
       return;
     }
@@ -443,7 +427,7 @@ if (name === "city") {
       setFormData(prev => ({ ...prev, apEmail: cleaned }));
       setErrors(prev => ({
         ...prev,
-        apEmail: validateEmail(cleaned, true, "Accounts Payable Email") || undefined
+        apEmail: validateEmail(cleaned, true, messages.fields.apEmail.label) || undefined
       }));
       return;
     }
@@ -481,7 +465,7 @@ if (name === "city") {
       const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
       const required = formData.paymentTerms === "net30";
       setFormData(prev => ({ ...prev, bankName: cleaned }));
-      setErrors(prev => ({ ...prev, bankName: validateRequired(cleaned, required, "Bank Name") || undefined }));
+      setErrors(prev => ({ ...prev, bankName: validateRequired(cleaned, required, messages.fields.bankName.label) || undefined }));
       return;
     }
     
@@ -489,7 +473,7 @@ if (name === "city") {
       const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
       const required = formData.paymentTerms === "net30";
       setFormData(prev => ({ ...prev, accountManager: cleaned }));
-      setErrors(prev => ({ ...prev, accountManager: validateRequired(cleaned, required, "Account Manager") || undefined }));
+      setErrors(prev => ({ ...prev, accountManager: validateRequired(cleaned, required, messages.fields.accountManager.label) || undefined }));
       return;
     }
     
@@ -497,7 +481,7 @@ if (name === "city") {
       const required = formData.paymentTerms === "net30";
       const normalized = normalizePhoneCA(value); // el mismo que usas para Telephone/AP Phone
       setFormData(prev => ({ ...prev, bankPhone: normalized }));
-      setErrors(prev => ({ ...prev, bankPhone: validatePhoneCA(normalized, required, "Bank Phone") || undefined }));
+      setErrors(prev => ({ ...prev, bankPhone: validatePhoneCA(normalized, required, messages.fields.bankPhone.label) || undefined }));
       return;
     }
     
@@ -505,7 +489,7 @@ if (name === "city") {
       const required = formData.paymentTerms === "net30";
       const cleaned = value.normalize("NFC").replace(/\s/g, "");
       setFormData(prev => ({ ...prev, bankEmail: cleaned }));
-      setErrors(prev => ({ ...prev, bankEmail: validateEmail(cleaned, required, "Bank Email") || undefined }));
+      setErrors(prev => ({ ...prev, bankEmail: validateEmail(cleaned, required, messages.fields.bankEmail.label) || undefined }));
       return;
     }
     
@@ -551,7 +535,7 @@ if (t) {
 
 
 
-  const renderInput = (label: string, name: keyof typeof formData, type = 'text', isTextArea = false) => (
+  const renderInput = (label: string, name: keyof typeof formData, type = 'text', isTextArea = false, placeholder?: string) => (
     <div>
       <label className="block mb-1">{label}</label>
       {isTextArea ? (
@@ -559,6 +543,7 @@ if (t) {
           name={name}
           value={formData[name]}
           onChange={handleChange}
+          placeholder={placeholder}
           className="w-full border rounded px-3 py-2"
           rows={2}
         />
@@ -568,6 +553,7 @@ if (t) {
           name={name}
           value={formData[name]}
           onChange={handleChange}
+          placeholder={placeholder}
           className="w-full border rounded px-3 py-2"
         />
       )}
@@ -626,84 +612,86 @@ function tradeGroupHasAnyLocal(fd: FormValues, i: number): boolean {
 
 function buildEmailHtml(fd: FormValues, timestamp: string): string {
   const rows: string[] = [];
+  const emailText = messages.email;
+  const fieldLabels = messages.fields;
 
-  rows.push(section("Request Summary"));
-  rows.push(tr("Submitted At", timestamp));
+  rows.push(section(emailText.section_requestSummary));
+  rows.push(tr(emailText.submittedAt, timestamp));
 
-  rows.push(section("Customer Information"));
+  rows.push(section(emailText.section_customerInfo));
   rows.push(
-    tr("Legal Name",  fd["legalName"]),
-    tr("City",        fd["city"]),
-    tr("Province",    fd["province"]),
-    tr("Postal Code", fd["postalCode"]),
-    tr("Telephone",   fd["telephone"]),
-    tr("Fax",         fd["fax"]),
-    tr("Website",     fd["website"]),
-    tr("Email",       fd["email"]),
+    tr(fieldLabels.legalName.label,  fd["legalName"]),
+    tr(fieldLabels.city.label,        fd["city"]),
+    tr(fieldLabels.province.label,    fd["province"]),
+    tr(fieldLabels.postalCode.label, fd["postalCode"]),
+    tr(fieldLabels.telephone.label,   fd["telephone"]),
+    tr(fieldLabels.fax.label,         fd["fax"]),
+    tr(fieldLabels.website.label,     fd["website"]),
+    tr(fieldLabels.email.label,       fd["email"]),
   );
 
-  rows.push(section("Addresses"));
+  rows.push(section(emailText.section_addresses));
   rows.push(
-    tr("Bill To Address", fd["billTo"]),
-    tr("Ship To Address", fd["shipTo"]),
+    tr(fieldLabels.billTo.label, fd["billTo"]),
+    tr(fieldLabels.shipTo.label, fd["shipTo"]),
   );
 
-  rows.push(section("Accounts Payable"));
+  rows.push(section(emailText.section_accountsPayable));
   rows.push(
-    tr("AP Contact",               fd["apContact"]),
-    tr("Accounts Payable Phone",   fd["apPhone"]),
-    tr("Accounts Payable Email",   fd["apEmail"]),
-    tr("Payment Terms",            fd["paymentTerms"] === "net30" ? "Net 30"
-                                   : fd["paymentTerms"] === "creditCard" ? "Credit Card"
+    tr(fieldLabels.apContact.label,               fd["apContact"]),
+    tr(fieldLabels.apPhone.label,   fd["apPhone"]),
+    tr(fieldLabels.apEmail.label,   fd["apEmail"]),
+    tr(fieldLabels.paymentTerms.label,            fd["paymentTerms"] === "net30" ? emailText.paymentNet30Short
+                                   : fd["paymentTerms"] === "creditCard" ? emailText.paymentCreditCardShort
                                    : fd["paymentTerms"]),
   );
 
   if (fd["paymentTerms"] === "net30") {
-    rows.push(section("Company Information"));
+    rows.push(section(emailText.section_companyInformation));
     rows.push(
-      tr("Type of Organization",          fd["typeOfOrganization"]),
-      tr("Years in Business",             fd["yearsInBusiness"]),
-      tr("Type of Business",              fd["typeOfBusiness"]),
-      tr("Annual Sales",                  fd["annualSales"]),
-      tr("Resell / Distribute?",          fd["resell"]),
-      tr("Credit Amount Requested",       fd["creditAmount"]),
-      tr("Products Interested in Purchasing", fd["products"]),
-      tr("Estimated Initial Order",       fd["initialOrder"]),
-      tr("Expected Annual Purchase",      fd["annualPurchase"]),
-      tr("Taxable",                       fd["taxable"]),
-      tr("GST Exempt Certificate #",      fd["gstTaxExempt"]),
-      tr("PST Exempt Certificate #",      fd["pstTaxExempt"]),
+      tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
+      tr(fieldLabels.yearsInBusiness.label,             fd["yearsInBusiness"]),
+      tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
+      tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
+      tr(fieldLabels.resell.label,          fd["resell"]),
+      tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
+      tr(fieldLabels.products.label, fd["products"]),
+      tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
+      tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
+      tr(fieldLabels.taxable.label,                       fd["taxable"]),
+      tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
+      tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
     );
 
-    rows.push(section("Bank References"));
+    rows.push(section(emailText.section_bankReferences));
     rows.push(
-      tr("Bank Name",        fd["bankName"]),
-      tr("Bank Address",     fd["bankAddress"]),
-      tr("Account Manager",  fd["accountManager"]),
-      tr("Bank Phone",       fd["bankPhone"]),
-      tr("Bank Fax",         fd["bankFax"]),
-      tr("Bank Email",       fd["bankEmail"]),
-      tr("Account Number",   fd["bankAccountNumber"]),
+      tr(fieldLabels.bankName.label,        fd["bankName"]),
+      tr(fieldLabels.bankAddress.label,     fd["bankAddress"]),
+      tr(fieldLabels.accountManager.label,  fd["accountManager"]),
+      tr(fieldLabels.bankPhone.label,       fd["bankPhone"]),
+      tr(fieldLabels.bankFax.label,         fd["bankFax"]),
+      tr(fieldLabels.bankEmail.label,       fd["bankEmail"]),
+      tr(fieldLabels.bankAccountNumber.label,   fd["bankAccountNumber"]),
     );
 
-    rows.push(section("Trade References"));
+    rows.push(section(emailText.section_tradeReferences));
     for (const i of [1, 2, 3] as const) {
       if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
-      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">Trade Reference ${i}</td></tr>`);
+      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">${esc(formatMessage(fieldLabels.trade.groupTitle, { idx: i }))}</td></tr>`);
       rows.push(
-        tr("Company Name",    fd[`tradeCompany${i}`]),
-        tr("Account No.",     fd[`tradeAccount${i}`]),
-        tr("Address",         fd[`tradeAddress${i}`]),
-        tr("Telephone",       fd[`tradeTel${i}`]),
-        tr("Contact Person",  fd[`tradeContact${i}`]),
-        tr("Email",           fd[`tradeEmail${i}`]),
+        tr(fieldLabels.trade.company.label,    fd[`tradeCompany${i}`]),
+        tr(fieldLabels.trade.account.label,     fd[`tradeAccount${i}`]),
+        tr(fieldLabels.trade.address.label,         fd[`tradeAddress${i}`]),
+        tr(fieldLabels.trade.tel.label,       fd[`tradeTel${i}`]),
+        tr(fieldLabels.trade.contact.label,  fd[`tradeContact${i}`]),
+        tr(fieldLabels.trade.email.label,           fd[`tradeEmail${i}`]),
       );
     }
   }
 
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;color:#111827">
-    <h2 style="margin:0 0 12px 0">Customer Application Form – Canada</h2>
+    <h2 style="margin:0 0 12px 0">${esc(messages.page.title)}</h2>
     <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
   </div>`;
 }
@@ -721,15 +709,15 @@ const handleSubmit = async () => {
   const msg = validateLegalName(formData.legalName);
   if (msg) {
     setErrors(prev => ({ ...prev, legalName: msg }));
-    alert("Please correct the errors before submitting.");
+    alert(messages.alerts.fixErrors);
     return;
   }
 
 
-  const billToMsg = validateRequired(formData.billTo ?? "", true, "Bill To Address");
+  const billToMsg = validateRequired(formData.billTo ?? "", true, messages.fields.billTo.label);
   if (billToMsg) {
     setErrors(prev => ({ ...prev, billTo: billToMsg }));
-    alert("Please correct the errors before submitting.");
+    alert(messages.alerts.fixErrors);
     return;
   }
 
@@ -743,31 +731,31 @@ const handleSubmit = async () => {
       city: cityMsg || undefined,
       province: provMsg || undefined,
     }));
-    alert("Please correct the errors before submitting.");
+    alert(messages.alerts.fixErrors);
     return;
   }
   
   const pcMsg = validatePostalCode(formData.postalCode);
   if (pcMsg) {
     setErrors(prev => ({ ...prev, postalCode: pcMsg }));
-    alert("Please correct the errors before submitting.");
+    alert(messages.alerts.fixErrors);
     return;
   }
 
 
-  const emailMsg = validateEmail(formData.email ?? "", true, "Email");  
-  const telMsg = validatePhoneCA(formData.telephone, true, "Telephone");
-  const apMsg  = validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone");
-  const faxMsg = validatePhoneCA(formData.fax ?? "", false, "Fax");
-  const apEmailMsg = validateEmail(formData.apEmail ?? "", true, "Accounts Payable Email");
+  const emailMsg = validateEmail(formData.email ?? "", true, messages.fields.email.label);  
+  const telMsg = validatePhoneCA(formData.telephone, true, messages.fields.telephone.label);
+  const apMsg  = validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label);
+  const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
+  const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
   const payMsg = validatePaymentTerms(formData.paymentTerms);
 
 // Solo si Net 30: valida Bank References
 if (formData.paymentTerms === "net30") {
-  const bankNameMsg = validateRequired(formData.bankName, true, "Bank Name");
-  const acctMgrMsg  = validateRequired(formData.accountManager, true, "Account Manager");
-  const bankPhoneMsg = validatePhoneCA(formData.bankPhone, true, "Bank Phone");
-  const bankEmailMsg = validateEmail(formData.bankEmail, true, "Bank Email");
+  const bankNameMsg = validateRequired(formData.bankName, true, messages.fields.bankName.label);
+  const acctMgrMsg  = validateRequired(formData.accountManager, true, messages.fields.accountManager.label);
+  const bankPhoneMsg = validatePhoneCA(formData.bankPhone, true, messages.fields.bankPhone.label);
+  const bankEmailMsg = validateEmail(formData.bankEmail, true, messages.fields.bankEmail.label);
 
   // Sanitiza Account Number a dígitos antes de enviar
   const sanitizedAcc = onlyDigits(formData.bankAccountNumber || "");
@@ -783,7 +771,7 @@ if (formData.paymentTerms === "net30") {
       bankPhone: bankPhoneMsg || undefined,
       bankEmail: bankEmailMsg || undefined,
     }));
-    alert("Please correct the errors before submitting.");
+    alert(messages.alerts.fixErrors);
     return;
   }
 }
@@ -799,7 +787,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
     paymentTerms: payMsg || undefined,
     email: emailMsg || undefined,
   }));
-  alert("Please correct the errors before submitting.");
+  alert(messages.alerts.fixErrors);
   return;
 }
 
@@ -823,7 +811,7 @@ const tradeErrs: Record<string, string | undefined> = {};
 
 if (Object.keys(tradeErrs).length > 0) {
   setErrors(prev => ({ ...prev, ...tradeErrs }));
-  alert("Please correct the errors before submitting.");
+  alert(messages.alerts.fixErrors);
   return;
 }
 }
@@ -855,7 +843,7 @@ try {
   
     
 } catch (error: unknown) {
-  let errorMessage = 'Unknown error';
+  let errorMessage = messages.alerts.unknownError;
 
   if (
     typeof error === 'object' &&
@@ -864,17 +852,19 @@ try {
   ) {
     errorMessage = (error as { text?: string; message?: string }).text
       ?? (error as { text?: string; message?: string }).message
-      ?? 'Unknown error';
+      ?? messages.alerts.unknownError;
   }
 
   console.error('Email sending error:', errorMessage);
-  alert(`Error sending email: ${errorMessage}`);
+  alert(formatMessage(messages.alerts.emailSendError, { errorMessage }));
 }
 
 };
 
 
 
+
+  const { fields, placeholders, sections, options, page } = messages;
 
   return (
 
@@ -884,7 +874,17 @@ try {
 
 <div className="flex flex-col md:flex-row items-center md:justify-between text-center md:text-left gap-2 mb-6">
   <img src="/Medtronic_logo.jpg" alt="Medtronic" className="h-12" />
-  <h1 className="text-xl font-bold">Customer Application Form - Canada</h1>
+  <div className="flex items-center gap-3">
+    <h1 className="text-xl font-bold">{page.title}</h1>
+    <button
+      type="button"
+      onClick={() => setLocale(prev => (prev === 'en' ? 'fr' : 'en'))}
+      className="text-sm border border-[#170f5f] text-[#170f5f] px-3 py-1 rounded hover:bg-[#170f5f] hover:text-white transition"
+      aria-label="Toggle language / Changer de langue"
+    >
+      {locale === 'en' ? 'Français' : 'English'}
+    </button>
+  </div>
 </div>
 
 
@@ -899,7 +899,7 @@ try {
 
   
         <div>
-  <label className="block mb-1" htmlFor="legalName">Legal Name</label>
+  <label className="block mb-1" htmlFor="legalName">{fields.legalName.label}</label>
   <input
     id="legalName"
     name="legalName"
@@ -925,7 +925,7 @@ try {
 </div>
 
   <div>
-  <label className="block mb-1" htmlFor="city">City</label>
+  <label className="block mb-1" htmlFor="city">{fields.city.label}</label>
   <input
     id="city"
     name="city"
@@ -952,7 +952,7 @@ try {
 
 
 <div>
-  <label className="block mb-1" htmlFor="province">Province</label>
+  <label className="block mb-1" htmlFor="province">{fields.province.label}</label>
   <select
     id="province"
     name="province"
@@ -968,9 +968,9 @@ try {
     aria-invalid={!!errors.province}
     aria-describedby="province-error"
   >
-    <option value="">Select</option>
-    {PROVINCES_CA.map(p => (
-      <option key={p} value={p}>{p}</option>
+    <option value="">{page.select}</option>
+    {options.provinces.map(opt => (
+      <option key={opt.value} value={opt.value}>{opt.label}</option>
     ))}
   </select>
   {errors.province && (
@@ -979,14 +979,14 @@ try {
 </div>
 
 <div>
-  <label className="block mb-1" htmlFor="postalCode">Postal Code</label>
+  <label className="block mb-1" htmlFor="postalCode">{fields.postalCode.label}</label>
   <input
     id="postalCode"
     name="postalCode"
     type="text"
     inputMode="text"
     autoCapitalize="characters"
-    placeholder="A1A 1A1"
+    placeholder={placeholders.postalCode}
     maxLength={7} // 6 caracteres + 1 espacio
     value={formData.postalCode}
     onChange={handleChange}
@@ -1009,19 +1009,19 @@ try {
 
 {/* Telephone (required) */}
 <div>
-  <label className="block mb-1" htmlFor="telephone">Telephone</label>
+  <label className="block mb-1" htmlFor="telephone">{fields.telephone.label}</label>
   <input
     id="telephone"
     name="telephone"
     type="tel"
     inputMode="tel"
     autoComplete="tel"
-    placeholder="(123) 456-7890"
+    placeholder={placeholders.phone}
     value={formData.telephone}
     onChange={handleChange}
     onBlur={() => setErrors(prev => ({
       ...prev,
-      telephone: validatePhoneCA(formData.telephone, true, "Telephone") || undefined
+      telephone: validatePhoneCA(formData.telephone, true, fields.telephone.label) || undefined
     }))}
     // patrón flexible: +1 opcional, separadores opcionales
     pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
@@ -1037,19 +1037,19 @@ try {
 
 {/* Fax (optional) */}
 <div>
-  <label className="block mb-1" htmlFor="fax">Fax (optional)</label>
+  <label className="block mb-1" htmlFor="fax">{fields.fax.label}</label>
   <input
     id="fax"
     name="fax"
     type="tel"
     inputMode="tel"
     autoComplete="tel"
-    placeholder="(123) 456-7890"
+    placeholder={placeholders.phone}
     value={formData.fax}
     onChange={handleChange}
     onBlur={() => setErrors(prev => ({
       ...prev,
-      fax: validatePhoneCA(formData.fax ?? "", false, "Fax") || undefined
+      fax: validatePhoneCA(formData.fax ?? "", false, fields.fax.label) || undefined
     }))}
     pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
     className={`w-full border rounded px-3 py-2 ${errors.fax ? 'border-red-600' : ''}`}
@@ -1061,24 +1061,24 @@ try {
 
 
 
-        {renderInput('Website', 'website')}
+        {renderInput(fields.website.label, 'website')}
 
 
         <div>
-  <label className="block mb-1" htmlFor="email">Email</label>
+  <label className="block mb-1" htmlFor="email">{fields.email.label}</label>
   <input
     id="email"
     name="email"
     type="email"
     inputMode="email"
     autoComplete="email"
-    placeholder="user@domain.com"
+    placeholder={placeholders.email}
     value={formData.email}
     onChange={handleChange}
     onBlur={() =>
       setErrors(prev => ({
         ...prev,
-        email: validateEmail(formData.email ?? "", true, "Email") || undefined
+        email: validateEmail(formData.email ?? "", true, fields.email.label) || undefined
       }))
     }
     className={`w-full border rounded px-3 py-2 ${errors.email ? 'border-red-600' : ''}`}
@@ -1094,7 +1094,7 @@ try {
 
 
 <div>
-  <label className="block mb-1" htmlFor="billTo">Bill To Address</label>
+  <label className="block mb-1" htmlFor="billTo">{fields.billTo.label}</label>
   <textarea
     id="billTo"
     name="billTo"
@@ -1104,7 +1104,7 @@ try {
     onBlur={() =>
       setErrors(prev => ({
         ...prev,
-        billTo: validateRequired(formData.billTo, true, "Bill To Address") || undefined,
+        billTo: validateRequired(formData.billTo, true, fields.billTo.label) || undefined,
       }))
     }
     className={`w-full border rounded px-3 py-2 ${errors.billTo ? 'border-red-600' : ''}`}
@@ -1119,26 +1119,26 @@ try {
 
 
 
-        {renderInput('Ship To Address', 'shipTo', 'text', true)}
-        {renderInput('Accounts Payable Contact', 'apContact')}
+        {renderInput(fields.shipTo.label, 'shipTo', 'text', true)}
+        {renderInput(fields.apContact.label, 'apContact')}
 
 
 
 {/* Accounts Payable Phone (required) */}
 <div>
-  <label className="block mb-1" htmlFor="apPhone">Accounts Payable Phone</label>
+  <label className="block mb-1" htmlFor="apPhone">{fields.apPhone.label}</label>
   <input
     id="apPhone"
     name="apPhone"
     type="tel"
     inputMode="tel"
     autoComplete="tel"
-    placeholder="(123) 456-7890"
+    placeholder={placeholders.phone}
     value={formData.apPhone}
     onChange={handleChange}
     onBlur={() => setErrors(prev => ({
       ...prev,
-      apPhone: validatePhoneCA(formData.apPhone, true, "Accounts Payable Phone") || undefined
+      apPhone: validatePhoneCA(formData.apPhone, true, fields.apPhone.label) || undefined
     }))}
     pattern="^(\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}$"
     className={`w-full border rounded px-3 py-2 ${errors.apPhone ? 'border-red-600' : ''}`}
@@ -1151,20 +1151,20 @@ try {
 
 
  <div>
-   <label className="block mb-1" htmlFor="apEmail">Accounts Payable Email</label>
+   <label className="block mb-1" htmlFor="apEmail">{fields.apEmail.label}</label>
    <input
      id="apEmail"
      name="apEmail"
      type="email"
      inputMode="email"
      autoComplete="email"
-     placeholder="ap@company.com"
+     placeholder={placeholders.apEmail}
      value={formData.apEmail}
      onChange={handleChange}
      onBlur={() =>
        setErrors(prev => ({
          ...prev,
-         apEmail: validateEmail(formData.apEmail ?? "", true, "Accounts Payable Email") || undefined
+         apEmail: validateEmail(formData.apEmail ?? "", true, fields.apEmail.label) || undefined
        }))
      }
      className={`w-full border rounded px-3 py-2 ${errors.apEmail ? 'border-red-600' : ''}`}
@@ -1178,9 +1178,9 @@ try {
 
 
  <div className="md:col-span-2 mt-6">
-  <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Payment Terms</h2>
+  <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
   <div role="radiogroup" aria-labelledby="payment-terms-label" className="flex flex-col gap-2">
-    <span id="payment-terms-label" className="sr-only">Payment Terms</span>
+    <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
 
     <label className="inline-flex items-center gap-2">
       <input
@@ -1197,7 +1197,7 @@ try {
         }
         aria-invalid={!!errors.paymentTerms}
       />
-      Credit Card (Pay upon order)
+      {options.paymentTerms.creditCard}
     </label>
 
     <label className="inline-flex items-center gap-2">
@@ -1215,7 +1215,7 @@ try {
         }
         aria-invalid={!!errors.paymentTerms}
       />
-      Net 30 Terms
+      {options.paymentTerms.net30}
     </label>
   </div>
 
@@ -1230,52 +1230,51 @@ try {
         {formData.paymentTerms === 'net30' && (
           <>
             <div className="md:col-span-2 mt-8">
-              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Company Information</h2>
+              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
             </div>
 
 
  <div>
-  <label className="block mb-1">Type of Organization</label>
+  <label className="block mb-1">{fields.typeOfOrganization.label}</label>
   <select
     name="typeOfOrganization"
     value={formData.typeOfOrganization}
     onChange={handleChange}
     className="w-full border rounded px-3 py-2"
   >
-    <option value="">Select</option>
-    <option value="Corporation">Corporation</option>
-    <option value="Partnership">Partnership</option>
-    <option value="Proprietorship">Proprietorship</option>
+    {options.typeOfOrganization.map(opt => (
+      <option key={opt.value} value={opt.value}>{opt.label}</option>
+    ))}
   </select>
 </div>
 
-            {renderInput('Years in Business', 'yearsInBusiness')}
-            {renderInput('Type of Business', 'typeOfBusiness')}
-            {renderInput('Annual Sales', 'annualSales')}
-            {renderInput('Will the product be resold or distributed?', 'resell')}
-            {renderInput('Credit Amount Requested', 'creditAmount')}
-            {renderInput('Products Interested in Purchasing', 'products', 'text', true)}
-            {renderInput('Estimated Initial Order', 'initialOrder')}
-            {renderInput('Expected Annual Purchase', 'annualPurchase')}
+            {renderInput(fields.yearsInBusiness.label, 'yearsInBusiness')}
+            {renderInput(fields.typeOfBusiness.label, 'typeOfBusiness')}
+            {renderInput(fields.annualSales.label, 'annualSales')}
+            {renderInput(fields.resell.label, 'resell')}
+            {renderInput(fields.creditAmount.label, 'creditAmount')}
+            {renderInput(fields.products.label, 'products', 'text', true)}
+            {renderInput(fields.initialOrder.label, 'initialOrder')}
+            {renderInput(fields.annualPurchase.label, 'annualPurchase')}
 
 
 <div>
-  <label className="block mb-1">Taxable</label>
+  <label className="block mb-1">{fields.taxable.label}</label>
   <select
     name="taxable"
     value={formData.taxable}
     onChange={handleChange}
     className="w-full border rounded px-3 py-2"
   >
-    <option value="">Select</option>
-    <option value="yes">Yes</option>
-    <option value="no">No</option>
+    {options.taxable.map(opt => (
+      <option key={opt.value} value={opt.value}>{opt.label}</option>
+    ))}
   </select>
 </div>
 
 <div className="mt-4">
   <label className="block mb-1">
-    If GST non-taxable, provide Tax Exempt Certificate #:
+    {fields.gstTaxExempt.label}
   </label>
   <input
     type="text"
@@ -1288,7 +1287,7 @@ try {
 
 <div className="mt-4">
   <label className="block mb-1">
-    If PST non-taxable, provide Tax Exempt Certificate #:
+    {fields.pstTaxExempt.label}
   </label>
   <input
     type="text"
@@ -1303,12 +1302,12 @@ try {
 
             {formData.paymentTerms === "net30" && (
   <div className="md:col-span-2 mt-6">
-    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">Bank References</h2>
+    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.bankReferences}</h2>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Bank Name (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankName">Bank Name</label>
+        <label className="block mb-1" htmlFor="bankName">{fields.bankName.label}</label>
         <input
           id="bankName"
           name="bankName"
@@ -1317,7 +1316,7 @@ try {
           onChange={handleChange}
           onBlur={() => setErrors(prev => ({
             ...prev,
-            bankName: validateRequired(formData.bankName, true, "Bank Name") || undefined
+            bankName: validateRequired(formData.bankName, true, fields.bankName.label) || undefined
           }))}
           className={`w-full border rounded px-3 py-2 ${errors.bankName ? 'border-red-600' : ''}`}
           aria-invalid={!!errors.bankName}
@@ -1327,14 +1326,14 @@ try {
       </div>
 
 
-      {renderInput('Bank Address', 'bankAddress')}
+      {renderInput(fields.bankAddress.label, 'bankAddress')}
 
 
 
 
       {/* Account Manager (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="accountManager">Account Manager</label>
+        <label className="block mb-1" htmlFor="accountManager">{fields.accountManager.label}</label>
         <input
           id="accountManager"
           name="accountManager"
@@ -1343,7 +1342,7 @@ try {
           onChange={handleChange}
           onBlur={() => setErrors(prev => ({
             ...prev,
-            accountManager: validateRequired(formData.accountManager, true, "Account Manager") || undefined
+            accountManager: validateRequired(formData.accountManager, true, fields.accountManager.label) || undefined
           }))}
           className={`w-full border rounded px-3 py-2 ${errors.accountManager ? 'border-red-600' : ''}`}
           aria-invalid={!!errors.accountManager}
@@ -1354,19 +1353,19 @@ try {
 
       {/* Bank Phone (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankPhone">Bank Phone</label>
+        <label className="block mb-1" htmlFor="bankPhone">{fields.bankPhone.label}</label>
         <input
           id="bankPhone"
           name="bankPhone"
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="(123) 456-7890"
+          placeholder={placeholders.phone}
           value={formData.bankPhone}
           onChange={handleChange}
           onBlur={() => setErrors(prev => ({
             ...prev,
-            bankPhone: validatePhoneCA(formData.bankPhone, true, "Bank Phone") || undefined
+            bankPhone: validatePhoneCA(formData.bankPhone, true, fields.bankPhone.label) || undefined
           }))}
           className={`w-full border rounded px-3 py-2 ${errors.bankPhone ? 'border-red-600' : ''}`}
           aria-invalid={!!errors.bankPhone}
@@ -1375,26 +1374,26 @@ try {
         {errors.bankPhone && <p id="bankPhone-error" className="text-red-600 text-sm mt-1">{errors.bankPhone}</p>}
       </div>
 
-      {renderInput('Bank Fax', 'bankFax')}
+      {renderInput(fields.bankFax.label, 'bankFax')}
 
 
 
 
       {/* Bank Email (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankEmail">Bank Email</label>
+        <label className="block mb-1" htmlFor="bankEmail">{fields.bankEmail.label}</label>
         <input
           id="bankEmail"
           name="bankEmail"
           type="email"
           inputMode="email"
           autoComplete="email"
-          placeholder="manager@bank.com"
+          placeholder={placeholders.bankEmail}
           value={formData.bankEmail}
           onChange={handleChange}
           onBlur={() => setErrors(prev => ({
             ...prev,
-            bankEmail: validateEmail(formData.bankEmail, true, "Bank Email") || undefined
+            bankEmail: validateEmail(formData.bankEmail, true, fields.bankEmail.label) || undefined
           }))}
           className={`w-full border rounded px-3 py-2 ${errors.bankEmail ? 'border-red-600' : ''}`}
           aria-invalid={!!errors.bankEmail}
@@ -1405,13 +1404,13 @@ try {
 
       {/* Account Number (optional, digits only) */}
       <div className="md:col-span-2">
-        <label className="block mb-1" htmlFor="bankAccountNumber">Account Number (optional)</label>
+        <label className="block mb-1" htmlFor="bankAccountNumber">{fields.bankAccountNumber.label}</label>
         <input
           id="bankAccountNumber"
           name="bankAccountNumber"
           type="text"
           inputMode="numeric"
-          placeholder="digits only"
+          placeholder={placeholders.digitsOnly}
           value={formData.bankAccountNumber}
           onChange={handleChange}
           className="w-full border rounded px-3 py-2"
@@ -1432,11 +1431,11 @@ try {
 
 
             <div className="md:col-span-2">
-              <h2 className="text-xl font-semibold text-[#170f5f] mt-10 mb-4">Trade References</h2>
+              <h2 className="text-xl font-semibold text-[#170f5f] mt-10 mb-4">{sections.tradeReferences}</h2>
               <div className="grid grid-cols-1 gap-8">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="border rounded p-4">
-                    <h3 className="text-lg font-semibold mb-2">Trade Reference {i}</h3>
+                    <h3 className="text-lg font-semibold mb-2">{formatMessage(fields.trade.groupTitle, { idx: i })}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
 
@@ -1461,7 +1460,7 @@ try {
             [name]: validateTradeField(name) || undefined,
           }))
         }
-        placeholder={isTel ? '(123) 456-7890' : undefined}
+        placeholder={isTel ? placeholders.phone : undefined}
         inputMode={isTel ? 'tel' : isEmail ? 'email' : undefined}
         className={`w-full border rounded px-3 py-2 ${errors[name] ? 'border-red-600' : ''}`}
         aria-invalid={!!errors[name]}
@@ -1491,33 +1490,32 @@ try {
         )}
 
         <div className="md:col-span-2 mt-8">
-          <h2 className="text-xl font-semibold text-[#170f5f] mb-4">Customer Segmentation</h2>
+          <h2 className="text-xl font-semibold text-[#170f5f] mb-4">{sections.customerSegmentation}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1">Primary Segment</label>
+              <label className="block mb-1">{fields.primarySegment.label}</label>
               <select
                 name="primarySegment"
                 value={formData.primarySegment}
                 onChange={handleChange}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="">Select</option>
-                <option value="hospital">Hospital</option>
-                <option value="alternate">Alternate Site</option>
-                <option value="continuing">Continuing Care</option>
+                {options.segmentation.primary.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block mb-1">Secondary Segment</label>
+              <label className="block mb-1">{fields.secondarySegment.label}</label>
               <select
                 name="secondarySegment"
                 value={formData.secondarySegment}
                 onChange={handleChange}
                 className="w-full border rounded px-3 py-2"
               >
-                <option value="">Select</option>
+                <option value="">{page.select}</option>
                 {(secondaryOptions[formData.primarySegment] || []).map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
@@ -1527,11 +1525,11 @@ try {
 
     {/* FINAL SECTION */}
         <div className="md:col-span-2 mt-10">
-          <h2 className="text-xl font-semibold text-[#170f5f] mb-4">Final Information</h2>
+          <h2 className="text-xl font-semibold text-[#170f5f] mb-4">{sections.finalInformation}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1">Requestor Name</label>
+              <label className="block mb-1">{fields.requestorName.label}</label>
               <input
                 type="text"
                 name="requestorName"
@@ -1541,7 +1539,7 @@ try {
               />
             </div>
             <div>
-              <label className="block mb-1">Title</label>
+              <label className="block mb-1">{fields.title.label}</label>
               <input
                 type="text"
                 name="title"
@@ -1552,7 +1550,7 @@ try {
             </div>
 
             <div>
-              <label className="block mb-1">Date</label>
+              <label className="block mb-1">{fields.date.label}</label>
               <input
                 type="date"
                 name="date"
@@ -1562,7 +1560,7 @@ try {
               />
             </div>
             <div>
-              <label className="block mb-1">Sales Rep Name</label>
+              <label className="block mb-1">{fields.salesRepName.label}</label>
               <input
                 type="text"
                 name="salesRepName"
@@ -1584,7 +1582,7 @@ try {
   
   className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
 >
-  Submit
+  {page.submit}
 </button>
 
 
