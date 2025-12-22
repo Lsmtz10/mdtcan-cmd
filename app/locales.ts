@@ -9,6 +9,7 @@ export const MESSAGES = {
       title: "Customer Application Form - Canada", // NOT IN PDF (custom title)
       submit: "Submit", // NOT IN PDF
       select: "Select", // NOT IN PDF
+      downloadPdf: "Download this form in PDF", // NOT IN PDF
     },
 
     sections: {
@@ -82,6 +83,7 @@ export const MESSAGES = {
       // Final information
       salesRepName: { label: "Sales Rep Name" },
       requestorName: { label: "Requestor Name" }, // NOT IN PDF
+      requestorEmail: { label: "Requester Email" }, // NOT IN PDF
       title: { label: "Title" },
       date: { label: "Date" },
     },
@@ -243,6 +245,7 @@ export const MESSAGES = {
       title: "Formulaire de demande client - Canada", // NOT IN PDF (custom title)
       submit: "Soumettre", // NOT IN PDF
       select: "Sélectionner", // NOT IN PDF
+      downloadPdf: "Télécharger ce formulaire en PDF", // NOT IN PDF
     },
 
     sections: {
@@ -316,6 +319,7 @@ export const MESSAGES = {
       // Final information
       salesRepName: { label: "Représentant de vente" },
       requestorName: { label: "Nom du demandeur" }, // NOT IN PDF
+      requestorEmail: { label: "Courriel du demandeur" }, // NOT IN PDF
       title: { label: "Titre" },
       date: { label: "Date" },
     },

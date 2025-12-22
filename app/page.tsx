@@ -1,3 +1,4 @@
+
 'use client'
 
 import React, { useEffect, useState } from 'react';
@@ -333,7 +334,10 @@ function handlePhoneFieldChange(
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
 }
 
-  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<string, ReadonlyArray<{ value: string; label: string }>>;
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<
+    string,
+    ReadonlyArray<{ value: string; label: string }>
+  >;
 
   
 
@@ -1227,11 +1231,9 @@ try {
 
 
 
-        {formData.paymentTerms === 'net30' && (
-          <>
-            <div className="md:col-span-2 mt-8">
-              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
-            </div>
+        <div className="md:col-span-2 mt-8">
+          <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
+        </div>
 
 
  <div>
@@ -1252,11 +1254,12 @@ try {
             {renderInput(fields.typeOfBusiness.label, 'typeOfBusiness')}
             {renderInput(fields.annualSales.label, 'annualSales')}
             {renderInput(fields.resell.label, 'resell')}
-            {renderInput(fields.creditAmount.label, 'creditAmount')}
             {renderInput(fields.products.label, 'products', 'text', true)}
-            {renderInput(fields.initialOrder.label, 'initialOrder')}
             {renderInput(fields.annualPurchase.label, 'annualPurchase')}
-
+            {formData.paymentTerms === 'net30' && (
+              <>
+                {renderInput(fields.initialOrder.label, 'initialOrder')}
+                {renderInput(fields.creditAmount.label, 'creditAmount')}
 
 <div>
   <label className="block mb-1">{fields.taxable.label}</label>
@@ -1300,8 +1303,7 @@ try {
 
 
 
-            {formData.paymentTerms === "net30" && (
-  <div className="md:col-span-2 mt-6">
+            <div className="md:col-span-2 mt-6">
     <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.bankReferences}</h2>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1419,11 +1421,6 @@ try {
       </div>
     </div>
   </div>
-)}
-
-
-
-
 
 
 
