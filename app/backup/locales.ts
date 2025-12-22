@@ -110,20 +110,6 @@ export const MESSAGES = {
         { value: "Proprietorship", label: "Proprietorship" },
       ],
 
-      annualPurchase: [
-        { value: "", label: "Select a range" }, // NOT IN PDF
-        { value: "0 - 25,000", label: "0 - 25,000" },
-        { value: "25,001 – 50,000", label: "25,001 – 50,000" },
-        { value: "50,001 – 100,000", label: "50,001 – 100,000" },
-        { value: "100,001 or above", label: "100,001 or above" },
-      ],
-
-      resell: [
-        { value: "", label: "Select an answer" }, // NOT IN PDF
-        { value: "yes", label: "Yes" },
-        { value: "no", label: "No" },
-      ],
-
       taxable: [
         { value: "", label: "Select" }, // NOT IN PDF
         { value: "yes", label: "Yes" },
@@ -358,20 +344,6 @@ export const MESSAGES = {
         { value: "Corporation", label: "Corporation" },
         { value: "Partnership", label: "Partenariat" },
         { value: "Proprietorship", label: "Propriétaire" },
-      ],
-
-      annualPurchase: [
-        { value: "", label: "Sélectionner une plage" }, // NOT IN PDF
-        { value: "0 - 25 000", label: "0 - 25 000" },
-        { value: "25 001 – 50 000", label: "25 001 – 50 000" },
-        { value: "50 001 – 100 000", label: "50 001 – 100 000" },
-        { value: "100 001 ou plus", label: "100 001 ou plus" },
-      ],
-
-      resell: [
-        { value: "", label: "Sélectionner une réponse" }, // NOT IN PDF
-        { value: "yes", label: "Oui" },
-        { value: "no", label: "Non" },
       ],
 
       taxable: [

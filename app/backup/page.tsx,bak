@@ -1,8 +1,6 @@
-
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 
 import emailjs from '@emailjs/browser'
 
@@ -74,7 +72,6 @@ export default function Home() {
     secondarySegment: '',
     salesRepName: '',
     requestorName: '',
-    requestorEmail: '',
     title: '',
     date: getTodayDate(),
   })
@@ -236,29 +233,6 @@ function validatePaymentTerms(value: string): string | null {
   return null;
 }
 
-const RESELL_OPTIONS = ["yes", "no"] as const;
-const RESELL_OPTIONS_SET = new Set<string>(RESELL_OPTIONS);
-
-function validateResell(value: string): string | null {
-  if (!value) return `${messages.fields.resell.label} ${messages.errors.requiredSuffix}`;
-  if (!RESELL_OPTIONS_SET.has(value)) return messages.errors.invalidOption;
-  return null;
-}
-
-const ANNUAL_PURCHASE_OPTIONS = [
-  "0 - 25,000",
-  "25,001 – 50,000",
-  "50,001 – 100,000",
-  "100,001 or above",
-] as const;
-const ANNUAL_PURCHASE_SET = new Set<string>(ANNUAL_PURCHASE_OPTIONS);
-
-function validateAnnualPurchase(value: string): string | null {
-  if (!value) return `${messages.fields.annualPurchase.label} ${messages.errors.requiredSuffix}`;
-  if (!ANNUAL_PURCHASE_SET.has(value)) return messages.errors.invalidOption;
-  return null;
-}
-
 
 function validateRequired(value: string, required: boolean, label: string): string | null {
   const v = (value ?? "").trim();
@@ -359,10 +333,7 @@ function handlePhoneFieldChange(
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
 }
 
-  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<
-    string,
-    ReadonlyArray<{ value: string; label: string }>
-  >;
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<string, ReadonlyArray<{ value: string; label: string }>>;
 
   
 
@@ -462,16 +433,6 @@ if (name === "city") {
     }
    
 
-    if (name === "requestorEmail") {
-      const cleaned = value.normalize("NFC").replace(/\s/g, "");
-      setFormData(prev => ({ ...prev, requestorEmail: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        requestorEmail: validateEmail(cleaned, true, messages.fields.requestorEmail.label) || undefined,
-      }));
-      return;
-    }
-
     if (name === "paymentTerms") {
       setFormData(prev => ({ ...prev, paymentTerms: value }));
       setErrors(prev => {
@@ -484,89 +445,17 @@ if (name === "city") {
         if (value === "creditCard") {
           const bankKeys = ["bankName","accountManager","bankPhone","bankEmail","bankAccountNumber"] as const;
           bankKeys.forEach(k => { delete next[k]; });
-
+    
           const tradeFields = ["Company","Account","Address","Tel","Contact","Email"] as const;
           ( [1,2,3] as const).forEach(i => {
             tradeFields.forEach(f => { delete next[`trade${f}${i}`]; });
           });
-          delete next.creditAmount;
-          delete next.initialOrder;
-          delete next.taxable;
         }
         return next;
       });
       return;
     }
-       
-
-    if (name === "resell") {
-      setFormData(prev => ({ ...prev, resell: value }));
-      setErrors(prev => ({
-        ...prev,
-        resell: validateResell(value) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "annualPurchase") {
-      setFormData(prev => ({ ...prev, annualPurchase: value }));
-      setErrors(prev => ({
-        ...prev,
-        annualPurchase: validateAnnualPurchase(value) || undefined,
-      }));
-      return;
-    }
-
-
-    if (name === "typeOfOrganization") {
-      setFormData(prev => ({ ...prev, typeOfOrganization: value }));
-      setErrors(prev => ({
-        ...prev,
-        typeOfOrganization: validateRequired(value, true, messages.fields.typeOfOrganization.label) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "typeOfBusiness") {
-      const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
-      setFormData(prev => ({ ...prev, typeOfBusiness: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        typeOfBusiness: validateRequired(cleaned, true, messages.fields.typeOfBusiness.label) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "products") {
-      const cleaned = value.normalize("NFC").trimStart();
-      setFormData(prev => ({ ...prev, products: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        products: validateRequired(cleaned, true, messages.fields.products.label) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "creditAmount") {
-      const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
-      const required = formData.paymentTerms === "net30";
-      setFormData(prev => ({ ...prev, creditAmount: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        creditAmount: validateRequired(cleaned, required, messages.fields.creditAmount.label) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "taxable") {
-      const required = formData.paymentTerms === "net30";
-      setFormData(prev => ({ ...prev, taxable: value }));
-      setErrors(prev => ({
-        ...prev,
-        taxable: validateRequired(value, required, messages.fields.taxable.label) || undefined,
-      }));
-      return;
-    }
+        
 
 
 
@@ -800,15 +689,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     }
   }
 
-  rows.push(section(messages.sections.finalInformation));
-  rows.push(
-    tr(fieldLabels.requestorName.label, fd["requestorName"]),
-    tr(fieldLabels.requestorEmail.label, fd["requestorEmail"]),
-    tr(fieldLabels.title.label, fd["title"]),
-    tr(fieldLabels.salesRepName.label, fd["salesRepName"]),
-    tr(fieldLabels.date.label, fd["date"]),
-  );
-
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;color:#111827">
     <h2 style="margin:0 0 12px 0">${esc(messages.page.title)}</h2>
@@ -863,24 +743,12 @@ const handleSubmit = async () => {
   }
 
 
-  const emailMsg = validateEmail(formData.email ?? "", true, messages.fields.email.label);
+  const emailMsg = validateEmail(formData.email ?? "", true, messages.fields.email.label);  
   const telMsg = validatePhoneCA(formData.telephone, true, messages.fields.telephone.label);
   const apMsg  = validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label);
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
   const payMsg = validatePaymentTerms(formData.paymentTerms);
-  const resellMsg = validateResell(formData.resell);
-  const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
-  const typeOrgMsg = validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label);
-  const typeBusinessMsg = validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label);
-  const productsMsg = validateRequired(formData.products, true, messages.fields.products.label);
-  const creditAmountMsg = formData.paymentTerms === "net30"
-    ? validateRequired(formData.creditAmount, true, messages.fields.creditAmount.label)
-    : null;
-  const taxableMsg = formData.paymentTerms === "net30"
-    ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
-    : null;
-  const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
 if (formData.paymentTerms === "net30") {
@@ -895,15 +763,13 @@ if (formData.paymentTerms === "net30") {
     setFormData(prev => ({ ...prev, bankAccountNumber: sanitizedAcc }));
   }
 
-  if (bankNameMsg || acctMgrMsg || bankPhoneMsg || bankEmailMsg || creditAmountMsg || taxableMsg) {
+  if (bankNameMsg || acctMgrMsg || bankPhoneMsg || bankEmailMsg) {
     setErrors(prev => ({
       ...prev,
       bankName: bankNameMsg || undefined,
       accountManager: acctMgrMsg || undefined,
       bankPhone: bankPhoneMsg || undefined,
       bankEmail: bankEmailMsg || undefined,
-      creditAmount: creditAmountMsg || undefined,
-      taxable: taxableMsg || undefined,
     }));
     alert(messages.alerts.fixErrors);
     return;
@@ -911,7 +777,7 @@ if (formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -919,14 +785,6 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     fax: faxMsg || undefined,
     apEmail: apEmailMsg || undefined,
     paymentTerms: payMsg || undefined,
-    resell: resellMsg || undefined,
-    annualPurchase: annualPurchaseMsg || undefined,
-    typeOfOrganization: typeOrgMsg || undefined,
-    typeOfBusiness: typeBusinessMsg || undefined,
-    products: productsMsg || undefined,
-    creditAmount: creditAmountMsg || undefined,
-    taxable: taxableMsg || undefined,
-    requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
   }));
   alert(messages.alerts.fixErrors);
@@ -1015,14 +873,7 @@ try {
 
 
 <div className="flex flex-col md:flex-row items-center md:justify-between text-center md:text-left gap-2 mb-6">
-  <Image
-    src="/Medtronic_logo.jpg"
-    alt="Medtronic"
-    width={160}
-    height={48}
-    className="h-12 w-auto"
-    priority
-  />
+  <img src="/Medtronic_logo.jpg" alt="Medtronic" className="h-12" />
   <div className="flex items-center gap-3">
     <h1 className="text-xl font-bold">{page.title}</h1>
     <button
@@ -1328,13 +1179,7 @@ try {
 
  <div className="md:col-span-2 mt-6">
   <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
-  <div
-    role="radiogroup"
-    aria-labelledby="payment-terms-label"
-    aria-invalid={!!errors.paymentTerms}
-    aria-describedby={errors.paymentTerms ? "payment-terms-error" : undefined}
-    className="flex flex-col gap-2"
-  >
+  <div role="radiogroup" aria-labelledby="payment-terms-label" className="flex flex-col gap-2">
     <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
 
     <label className="inline-flex items-center gap-2">
@@ -1350,6 +1195,7 @@ try {
             paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
           }))
         }
+        aria-invalid={!!errors.paymentTerms}
       />
       {options.paymentTerms.creditCard}
     </label>
@@ -1367,22 +1213,25 @@ try {
             paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
           }))
         }
+        aria-invalid={!!errors.paymentTerms}
       />
       {options.paymentTerms.net30}
     </label>
   </div>
 
   {errors.paymentTerms && (
-    <p id="payment-terms-error" className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
+    <p className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
   )}
 </div>
 
 
 
 
-        <div className="md:col-span-2 mt-8">
-          <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
-        </div>
+        {formData.paymentTerms === 'net30' && (
+          <>
+            <div className="md:col-span-2 mt-8">
+              <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
+            </div>
 
 
  <div>
@@ -1391,141 +1240,23 @@ try {
     name="typeOfOrganization"
     value={formData.typeOfOrganization}
     onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        typeOfOrganization: validateRequired(formData.typeOfOrganization, true, fields.typeOfOrganization.label) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.typeOfOrganization ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.typeOfOrganization}
-    aria-describedby="typeOfOrganization-error"
+    className="w-full border rounded px-3 py-2"
   >
     {options.typeOfOrganization.map(opt => (
       <option key={opt.value} value={opt.value}>{opt.label}</option>
     ))}
   </select>
-  {errors.typeOfOrganization && (
-    <p id="typeOfOrganization-error" className="text-red-600 text-sm mt-1">{errors.typeOfOrganization}</p>
-  )}
 </div>
 
             {renderInput(fields.yearsInBusiness.label, 'yearsInBusiness')}
-            <div>
-              <label className="block mb-1">{fields.typeOfBusiness.label}</label>
-              <input
-                type="text"
-                name="typeOfBusiness"
-                value={formData.typeOfBusiness}
-                onChange={handleChange}
-                onBlur={() =>
-                  setErrors(prev => ({
-                    ...prev,
-                    typeOfBusiness: validateRequired(formData.typeOfBusiness, true, fields.typeOfBusiness.label) || undefined,
-                  }))
-                }
-                className={`w-full border rounded px-3 py-2 ${errors.typeOfBusiness ? 'border-red-600' : ''}`}
-                aria-invalid={!!errors.typeOfBusiness}
-                aria-describedby="typeOfBusiness-error"
-              />
-              {errors.typeOfBusiness && (
-                <p id="typeOfBusiness-error" className="text-red-600 text-sm mt-1">{errors.typeOfBusiness}</p>
-              )}
-            </div>
+            {renderInput(fields.typeOfBusiness.label, 'typeOfBusiness')}
             {renderInput(fields.annualSales.label, 'annualSales')}
-            <div>
-              <label className="block mb-1">{fields.resell.label}</label>
-              <select
-                name="resell"
-                value={formData.resell}
-                onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
-                onBlur={() =>
-                  setErrors(prev => ({
-                    ...prev,
-                    resell: validateResell(formData.resell) || undefined,
-                  }))
-                }
-                aria-invalid={!!errors.resell}
-                aria-describedby="resell-error"
-              >
-                {options.resell.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              {errors.resell && (
-                <p id="resell-error" className="text-red-600 text-sm mt-1">{errors.resell}</p>
-              )}
-            </div>
-            <div>
-              <label className="block mb-1">{fields.products.label}</label>
-              <textarea
-                name="products"
-                value={formData.products}
-                onChange={handleChange}
-                onBlur={() =>
-                  setErrors(prev => ({
-                    ...prev,
-                    products: validateRequired(formData.products, true, fields.products.label) || undefined,
-                  }))
-                }
-                className={`w-full border rounded px-3 py-2 ${errors.products ? 'border-red-600' : ''}`}
-                rows={2}
-                aria-invalid={!!errors.products}
-                aria-describedby="products-error"
-              />
-              {errors.products && (
-                <p id="products-error" className="text-red-600 text-sm mt-1">{errors.products}</p>
-              )}
-            </div>
-            <div>
-              <label className="block mb-1">{fields.annualPurchase.label}</label>
-              <select
-                name="annualPurchase"
-                value={formData.annualPurchase}
-                onChange={handleChange}
-                onBlur={() =>
-                  setErrors(prev => ({
-                    ...prev,
-                    annualPurchase: validateAnnualPurchase(formData.annualPurchase) || undefined,
-                  }))
-                }
-                className="w-full border rounded px-3 py-2"
-                aria-invalid={!!errors.annualPurchase}
-                aria-describedby="annualPurchase-error"
-              >
-                {options.annualPurchase.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              {errors.annualPurchase && (
-                <p id="annualPurchase-error" className="text-red-600 text-sm mt-1">{errors.annualPurchase}</p>
-              )}
-            </div>
-            {formData.paymentTerms === 'net30' && (
-              <>
-                {renderInput(fields.initialOrder.label, 'initialOrder')}
-                <div>
-                  <label className="block mb-1">{fields.creditAmount.label}</label>
-                  <input
-                    type="text"
-                    name="creditAmount"
-                    value={formData.creditAmount}
-                    onChange={handleChange}
-                    onBlur={() =>
-                      setErrors(prev => ({
-                        ...prev,
-                        creditAmount: validateRequired(formData.creditAmount, true, fields.creditAmount.label) || undefined,
-                      }))
-                    }
-                    className={`w-full border rounded px-3 py-2 ${errors.creditAmount ? 'border-red-600' : ''}`}
-                    aria-invalid={!!errors.creditAmount}
-                    aria-describedby="creditAmount-error"
-                  />
-                  {errors.creditAmount && (
-                    <p id="creditAmount-error" className="text-red-600 text-sm mt-1">{errors.creditAmount}</p>
-                  )}
-                </div>
+            {renderInput(fields.resell.label, 'resell')}
+            {renderInput(fields.creditAmount.label, 'creditAmount')}
+            {renderInput(fields.products.label, 'products', 'text', true)}
+            {renderInput(fields.initialOrder.label, 'initialOrder')}
+            {renderInput(fields.annualPurchase.label, 'annualPurchase')}
+
 
 <div>
   <label className="block mb-1">{fields.taxable.label}</label>
@@ -1533,23 +1264,12 @@ try {
     name="taxable"
     value={formData.taxable}
     onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        taxable: validateRequired(formData.taxable, true, fields.taxable.label) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.taxable ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.taxable}
-    aria-describedby="taxable-error"
+    className="w-full border rounded px-3 py-2"
   >
     {options.taxable.map(opt => (
       <option key={opt.value} value={opt.value}>{opt.label}</option>
     ))}
   </select>
-  {errors.taxable && (
-    <p id="taxable-error" className="text-red-600 text-sm mt-1">{errors.taxable}</p>
-  )}
 </div>
 
 <div className="mt-4">
@@ -1580,7 +1300,8 @@ try {
 
 
 
-            <div className="md:col-span-2 mt-6">
+            {formData.paymentTerms === "net30" && (
+  <div className="md:col-span-2 mt-6">
     <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.bankReferences}</h2>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1698,6 +1419,11 @@ try {
       </div>
     </div>
   </div>
+)}
+
+
+
+
 
 
 
@@ -1811,27 +1537,6 @@ try {
                 onChange={handleChange}
                 className="w-full border rounded px-3 py-2"
               />
-            </div>
-            <div>
-              <label className="block mb-1">{fields.requestorEmail.label}</label>
-              <input
-                type="email"
-                name="requestorEmail"
-                value={formData.requestorEmail}
-                onChange={handleChange}
-                onBlur={() =>
-                  setErrors(prev => ({
-                    ...prev,
-                    requestorEmail: validateEmail(formData.requestorEmail ?? "", true, fields.requestorEmail.label) || undefined,
-                  }))
-                }
-                className={`w-full border rounded px-3 py-2 ${errors.requestorEmail ? 'border-red-600' : ''}`}
-                aria-invalid={!!errors.requestorEmail}
-                aria-describedby="requestorEmail-error"
-              />
-              {errors.requestorEmail && (
-                <p id="requestorEmail-error" className="text-red-600 text-sm mt-1">{errors.requestorEmail}</p>
-              )}
             </div>
             <div>
               <label className="block mb-1">{fields.title.label}</label>
