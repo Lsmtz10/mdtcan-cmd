@@ -48,6 +48,7 @@ export const MESSAGES = {
       typeOfBusiness: { label: "Type of Business" },
       annualSales: { label: "Annual Sales" },
       resell: { label: "Will the product be resold or distributed?" },
+      intendedDistribution: { label: "Intended geographical distribution" },
       creditAmount: { label: "Credit Amount Requested" },
       products: { label: "Products Interested in Purchasing" },
       initialOrder: { label: "Estimated Initial Order" },
@@ -123,6 +124,10 @@ export const MESSAGES = {
         { value: "yes", label: "Yes" },
         { value: "no", label: "No" },
       ],
+
+      intendedDistribution: {
+        canadaWide: "Canada wide",
+      },
 
       taxable: [
         { value: "", label: "Select" }, // NOT IN PDF
@@ -224,6 +229,7 @@ export const MESSAGES = {
       phone10Digits: "{label} must have 10 digits.",
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
+      intendedDistributionRequired: "Select at least one distribution option.",
     },
 
     alerts: {
@@ -298,6 +304,7 @@ export const MESSAGES = {
       typeOfBusiness: { label: "Genre d’industrie" },
       annualSales: { label: "Ventes annuelles" },
       resell: { label: "Les produits sont pour vente ou distribution" },
+      intendedDistribution: { label: "Répartition géographique prévue" },
       creditAmount: { label: "Marge de crédit désirée" },
       products: { label: "Produit(s) que vous désirez acheter" },
       initialOrder: { label: "Estimée de la première commande" },
@@ -373,6 +380,10 @@ export const MESSAGES = {
         { value: "yes", label: "Oui" },
         { value: "no", label: "Non" },
       ],
+
+      intendedDistribution: {
+        canadaWide: "Partout au Canada",
+      },
 
       taxable: [
         { value: "", label: "Sélectionner" }, // NOT IN PDF
@@ -473,6 +484,7 @@ export const MESSAGES = {
       phone10Digits: "{label} doit comporter 10 chiffres.",
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
+      intendedDistributionRequired: "Sélectionnez au moins une option de distribution.",
     },
 
     alerts: {
@@ -518,6 +530,7 @@ export const NOT_IN_PDF_KEYS = [
   "fields.trade.email.label",
   "fields.primarySegment.label",
   "fields.secondarySegment.label",
+  "fields.intendedDistribution.label",
   "fields.requestorName.label",
   "placeholders.*",
   "errors.*",

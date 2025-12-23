@@ -44,6 +44,7 @@ export default function Home() {
     typeOfBusiness: '',
     annualSales: '',
     resell: '',
+    intendedDistribution: '',
     creditAmount: '',
     products: '',
     initialOrder: '',
@@ -96,10 +97,11 @@ export default function Home() {
     bankEmail?: string;
     bankAccountNumber?: string;
     email?: string;
-  }>({});
+ }>({});
  */
 
 
+  const [intendedDistribution, setIntendedDistribution] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
@@ -153,6 +155,9 @@ const PROVINCES_CA = [
   "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
   "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
 ] as const;
+
+const CANADA_WIDE_OPTION = "Canada wide";
+const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...PROVINCES_CA] as const;
 
 const PROVINCES_SET = new Set<string>(PROVINCES_CA);
 
@@ -242,6 +247,12 @@ const RESELL_OPTIONS_SET = new Set<string>(RESELL_OPTIONS);
 function validateResell(value: string): string | null {
   if (!value) return `${messages.fields.resell.label} ${messages.errors.requiredSuffix}`;
   if (!RESELL_OPTIONS_SET.has(value)) return messages.errors.invalidOption;
+  return null;
+}
+
+function validateIntendedDistribution(selected: string[], resellValue: string): string | null {
+  if (resellValue !== "yes") return null;
+  if (!selected.length) return messages.errors.intendedDistributionRequired;
   return null;
 }
 
@@ -357,6 +368,34 @@ function handlePhoneFieldChange(
         : messages.fields.apPhone.label;
   const msg = validatePhoneCA(normalized, required, label);
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
+}
+
+function nextDistributionSelection(value: string, checked: boolean, current: string[]): string[] {
+  const currentSet = new Set(current);
+
+  if (value === CANADA_WIDE_OPTION) {
+    return checked ? [...DISTRIBUTION_OPTIONS] : [];
+  }
+
+  if (checked) {
+    currentSet.add(value);
+    currentSet.delete(CANADA_WIDE_OPTION); // manual picks do not auto-set Canada wide
+    return Array.from(currentSet);
+  }
+
+  // Unchecking a province removes it and also drops Canada wide if it was on
+  currentSet.delete(value);
+  currentSet.delete(CANADA_WIDE_OPTION);
+  return Array.from(currentSet);
+}
+
+function handleDistributionCheckbox(value: string, checked: boolean) {
+  const nextSelection = nextDistributionSelection(value, checked, intendedDistribution);
+  setIntendedDistribution(nextSelection);
+  setFormData(prev => ({ ...prev, intendedDistribution: nextSelection.join(", ") }));
+
+  const msg = validateIntendedDistribution(nextSelection, formData.resell);
+  setErrors(prev => ({ ...prev, intendedDistribution: msg || undefined }));
 }
 
   const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<
@@ -500,10 +539,26 @@ if (name === "city") {
        
 
     if (name === "resell") {
-      setFormData(prev => ({ ...prev, resell: value }));
+      const nextResell = value;
+      const keepDistribution = nextResell === "yes";
+      if (!keepDistribution) {
+        setIntendedDistribution([]);
+      }
+      const distributionSelection = keepDistribution ? intendedDistribution : [];
+
+      const distributionMsg = distributionSelection.length
+        ? validateIntendedDistribution(distributionSelection, nextResell)
+        : null;
+
+      setFormData(prev => ({
+        ...prev,
+        resell: nextResell,
+        intendedDistribution: distributionSelection.join(", "),
+      }));
       setErrors(prev => ({
         ...prev,
-        resell: validateResell(value) || undefined,
+        resell: validateResell(nextResell) || undefined,
+        intendedDistribution: distributionMsg || undefined,
       }));
       return;
     }
@@ -765,6 +820,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
       tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
       tr(fieldLabels.resell.label,          fd["resell"]),
+      tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
       tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
       tr(fieldLabels.products.label, fd["products"]),
       tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
@@ -870,6 +926,7 @@ const handleSubmit = async () => {
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
   const payMsg = validatePaymentTerms(formData.paymentTerms);
   const resellMsg = validateResell(formData.resell);
+  const distributionMsg = validateIntendedDistribution(intendedDistribution, formData.resell);
   const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
   const typeOrgMsg = validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label);
   const typeBusinessMsg = validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label);
@@ -911,7 +968,7 @@ if (formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -920,6 +977,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     apEmail: apEmailMsg || undefined,
     paymentTerms: payMsg || undefined,
     resell: resellMsg || undefined,
+    intendedDistribution: distributionMsg || undefined,
     annualPurchase: annualPurchaseMsg || undefined,
     typeOfOrganization: typeOrgMsg || undefined,
     typeOfBusiness: typeBusinessMsg || undefined,
@@ -1007,6 +1065,10 @@ try {
 
 
   const { fields, placeholders, sections, options, page } = messages;
+  const distributionOptions = [
+    { value: CANADA_WIDE_OPTION, label: options.intendedDistribution.canadaWide },
+    ...options.provinces,
+  ];
 
   return (
 
@@ -1457,6 +1519,35 @@ try {
                 <p id="resell-error" className="text-red-600 text-sm mt-1">{errors.resell}</p>
               )}
             </div>
+            {formData.resell === 'yes' && (
+              <fieldset
+                className={`border rounded px-3 py-2 ${errors.intendedDistribution ? 'border-red-600' : ''}`}
+                aria-invalid={!!errors.intendedDistribution}
+                aria-describedby="intendedDistribution-error"
+              >
+                <legend className="px-1 text-sm font-medium">{fields.intendedDistribution.label}</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                  {distributionOptions.map(opt => {
+                    const checked = intendedDistribution.includes(opt.value);
+                    return (
+                      <label key={opt.value} className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="intendedDistribution"
+                          value={opt.value}
+                          checked={checked}
+                          onChange={(e) => handleDistributionCheckbox(opt.value, e.target.checked)}
+                        />
+                        {opt.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                {errors.intendedDistribution && (
+                  <p id="intendedDistribution-error" className="text-red-600 text-sm mt-2">{errors.intendedDistribution}</p>
+                )}
+              </fieldset>
+            )}
             <div>
               <label className="block mb-1">{fields.products.label}</label>
               <textarea
