@@ -256,17 +256,10 @@ function validateIntendedDistribution(selected: string[], resellValue: string): 
   return null;
 }
 
-const ANNUAL_PURCHASE_OPTIONS = [
-  "0 - 25,000",
-  "25,001 – 50,000",
-  "50,001 – 100,000",
-  "100,001 or above",
-] as const;
-const ANNUAL_PURCHASE_SET = new Set<string>(ANNUAL_PURCHASE_OPTIONS);
-
 function validateAnnualPurchase(value: string): string | null {
   if (!value) return `${messages.fields.annualPurchase.label} ${messages.errors.requiredSuffix}`;
-  if (!ANNUAL_PURCHASE_SET.has(value)) return messages.errors.invalidOption;
+  const validValues = new Set<string>(messages.options.annualPurchase.map(opt => String(opt.value)));
+  if (!validValues.has(value)) return messages.errors.invalidOption;
   return null;
 }
 
@@ -325,7 +318,10 @@ function validateTradeField(name: string, override?: string): string | null {
     case 'Address':
       return validateRequired(raw, required, `${tradeGroupLabel} ${messages.fields.trade.address.label}`);
     case 'Contact':
-      return required ? formatMessage(messages.errors.tradeRefContactRequired, { idx }) : null;
+      if (required && !raw) {
+        return formatMessage(messages.errors.tradeRefContactRequired, { idx });
+      }
+      return null;
     default:
       return null;
   }
@@ -344,11 +340,6 @@ function tradeLabel(field: string): string {
     default:        return tradeFields.company.label; // 'Company'
   }
 }
-
-
-
-
-
 
 
 
@@ -1069,6 +1060,10 @@ try {
     { value: CANADA_WIDE_OPTION, label: options.intendedDistribution.canadaWide },
     ...options.provinces,
   ];
+  const pdfFilename = locale === 'fr'
+    ? "Credit Application Form - Fr version - Jan25.pdf"
+    : "Credit Application Form - En version - Jan25.pdf";
+  const pdfUrl = encodeURI(`/${pdfFilename}`);
 
   return (
 
@@ -1098,6 +1093,15 @@ try {
   </div>
 </div>
 
+<div className="flex justify-end mb-4">
+  <a
+    href={pdfUrl}
+    download={pdfFilename}
+    className="text-[#170f5f] underline hover:text-[#1f1790]"
+  >
+    {page.downloadPdf}
+  </a>
+</div>
 
 
 
