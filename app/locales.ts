@@ -33,6 +33,17 @@ export const MESSAGES = {
       email: { label: "Email" }, // PDF uses "Email Address"
       billTo: { label: "Bill To Address" },
       shipTo: { label: "Ship To Address" },
+      requestType: {
+        label: "I want to request:",
+        options: {
+          newAccount: "New account",
+          addShipTo: "Add a ship-to to an existing account",
+        },
+        addShipToNote:
+          "The following information is required to accurately link the new Ship-to to an existing account in our records",
+      },
+      existingAccountInfo: { label: "Existing account number and/or payer name" },
+      payerAddress: { label: "Payer address" },
 
       // Accounts payable (not present as-is in PDF)
       apContact: { label: "Accounts Payable Contact" }, // NOT IN PDF
@@ -241,6 +252,7 @@ export const MESSAGES = {
     email: {
       subject: "Customer Application Form – Canada", // NOT IN PDF
       section_requestSummary: "Request Summary", // NOT IN PDF
+      section_requestDetails: "Request Details",
       submittedAt: "Submitted At", // NOT IN PDF
       section_customerInfo: "Customer Information", // NOT IN PDF
       section_addresses: "Addresses", // NOT IN PDF
@@ -289,6 +301,17 @@ export const MESSAGES = {
       email: { label: "Adresse courriel" },
       billTo: { label: "Adresse de facturation" },
       shipTo: { label: "Adresse de livraison" },
+      requestType: {
+        label: "Je veux demander :",
+        options: {
+          newAccount: "Nouveau compte",
+          addShipTo: "Ajouter une adresse de livraison à un compte existant",
+        },
+        addShipToNote:
+          "Les renseignements suivants sont requis pour lier correctement la nouvelle adresse de livraison au compte existant dans nos dossiers",
+      },
+      existingAccountInfo: { label: "Numéro de compte existant et/ou nom du payeur" },
+      payerAddress: { label: "Adresse du payeur" },
 
       // Accounts payable (not present as-is in PDF)
       apContact: { label: "Contact des comptes payables" }, // NOT IN PDF
@@ -496,6 +519,7 @@ export const MESSAGES = {
     email: {
       subject: "Formulaire de demande client – Canada", // NOT IN PDF
       section_requestSummary: "Résumé de la demande", // NOT IN PDF
+      section_requestDetails: "Détails de la demande",
       submittedAt: "Soumis le", // NOT IN PDF
       section_customerInfo: "Informations client", // NOT IN PDF
       section_addresses: "Adresses", // NOT IN PDF

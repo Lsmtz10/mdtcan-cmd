@@ -24,6 +24,7 @@ export default function Home() {
   const messages = MESSAGES[locale];
 
   const [formData, setFormData] = useState<Record<string, string>>({
+    requestType: 'newAccount',
 
     legalName: '',
     city: '',
@@ -38,6 +39,8 @@ export default function Home() {
     apContact: '',
     apPhone: '',
     apEmail: '',
+    existingAccountInfo: '',
+    payerAddress: '',
     paymentTerms: '',
     typeOfOrganization: '',
     yearsInBusiness: '',
@@ -400,6 +403,24 @@ function handleDistributionCheckbox(value: string, checked: boolean) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
+    if (name === "requestType") {
+      const nextType = value;
+      setFormData(prev => ({
+        ...prev,
+        requestType: nextType,
+        paymentTerms: nextType === "newAccount" ? prev.paymentTerms : "",
+      }));
+      setErrors(prev => {
+        const next = { ...prev };
+        next.paymentTerms = undefined;
+        next.requestType = undefined;
+        next.existingAccountInfo = undefined;
+        next.payerAddress = undefined;
+        return next;
+      });
+      return;
+    }
+
     if (name === "legalName") {
       const cleaned = value
         .normalize("NFC")
@@ -491,6 +512,28 @@ if (name === "city") {
       return;
     }
    
+    if (name === "existingAccountInfo") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const required = formData.requestType === "addShipTo";
+      setFormData(prev => ({ ...prev, existingAccountInfo: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        existingAccountInfo: validateRequired(cleaned, required, messages.fields.existingAccountInfo.label) || undefined,
+      }));
+      return;
+    }
+
+    if (name === "payerAddress") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const required = formData.requestType === "addShipTo";
+      setFormData(prev => ({ ...prev, payerAddress: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        payerAddress: validateRequired(cleaned, required, messages.fields.payerAddress.label) || undefined,
+      }));
+      return;
+    }
+
 
     if (name === "requestorEmail") {
       const cleaned = value.normalize("NFC").replace(/\s/g, "");
@@ -771,9 +814,20 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
   const rows: string[] = [];
   const emailText = messages.email;
   const fieldLabels = messages.fields;
+  const requestTypeLabel =
+    fd["requestType"] === "addShipTo"
+      ? fieldLabels.requestType.options.addShipTo
+      : fieldLabels.requestType.options.newAccount;
 
   rows.push(section(emailText.section_requestSummary));
   rows.push(tr(emailText.submittedAt, timestamp));
+
+  rows.push(section(emailText.section_requestDetails));
+  rows.push(
+    tr(fieldLabels.requestType.label, requestTypeLabel),
+    tr(fieldLabels.existingAccountInfo.label, fd["existingAccountInfo"]),
+    tr(fieldLabels.payerAddress.label, fd["payerAddress"]),
+  );
 
   rows.push(section(emailText.section_customerInfo));
   rows.push(
@@ -915,7 +969,13 @@ const handleSubmit = async () => {
   const apMsg  = validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label);
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
-  const payMsg = validatePaymentTerms(formData.paymentTerms);
+  const payMsg = formData.requestType === "newAccount" ? validatePaymentTerms(formData.paymentTerms) : null;
+  const existingAccountMsg = formData.requestType === "addShipTo"
+    ? validateRequired(formData.existingAccountInfo, true, messages.fields.existingAccountInfo.label)
+    : null;
+  const payerAddressMsg = formData.requestType === "addShipTo"
+    ? validateRequired(formData.payerAddress, true, messages.fields.payerAddress.label)
+    : null;
   const resellMsg = validateResell(formData.resell);
   const distributionMsg = validateIntendedDistribution(intendedDistribution, formData.resell);
   const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
@@ -959,7 +1019,7 @@ if (formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -967,6 +1027,8 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     fax: faxMsg || undefined,
     apEmail: apEmailMsg || undefined,
     paymentTerms: payMsg || undefined,
+    existingAccountInfo: existingAccountMsg || undefined,
+    payerAddress: payerAddressMsg || undefined,
     resell: resellMsg || undefined,
     intendedDistribution: distributionMsg || undefined,
     annualPurchase: annualPurchaseMsg || undefined,
@@ -1110,7 +1172,91 @@ try {
              onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
                >
         
-   
+        <div className="md:col-span-2 border rounded px-4 py-3 bg-[#f9fafb]">
+          <p className="font-semibold mb-2">{fields.requestType.label}</p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="requestType"
+                value="newAccount"
+                checked={formData.requestType === "newAccount"}
+                onChange={handleChange}
+              />
+              {fields.requestType.options.newAccount}
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="requestType"
+                value="addShipTo"
+                checked={formData.requestType === "addShipTo"}
+                onChange={handleChange}
+              />
+              {fields.requestType.options.addShipTo}
+            </label>
+          </div>
+
+          {formData.requestType === "addShipTo" && (
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-gray-700">{fields.requestType.addShipToNote}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1" htmlFor="existingAccountInfo">{fields.existingAccountInfo.label}</label>
+                  <textarea
+                    id="existingAccountInfo"
+                    name="existingAccountInfo"
+                    rows={2}
+                    value={formData.existingAccountInfo}
+                    onChange={handleChange}
+                    onBlur={() =>
+                      setErrors(prev => ({
+                        ...prev,
+                        existingAccountInfo: validateRequired(
+                          formData.existingAccountInfo,
+                          true,
+                          fields.existingAccountInfo.label
+                        ) || undefined,
+                      }))
+                    }
+                    className={`w-full border rounded px-3 py-2 ${errors.existingAccountInfo ? 'border-red-600' : ''}`}
+                    aria-invalid={!!errors.existingAccountInfo}
+                    aria-describedby="existingAccountInfo-error"
+                  />
+                  {errors.existingAccountInfo && (
+                    <p id="existingAccountInfo-error" className="text-red-600 text-sm mt-1">{errors.existingAccountInfo}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block mb-1" htmlFor="payerAddress">{fields.payerAddress.label}</label>
+                  <textarea
+                    id="payerAddress"
+                    name="payerAddress"
+                    rows={2}
+                    value={formData.payerAddress}
+                    onChange={handleChange}
+                    onBlur={() =>
+                      setErrors(prev => ({
+                        ...prev,
+                        payerAddress: validateRequired(
+                          formData.payerAddress,
+                          true,
+                          fields.payerAddress.label
+                        ) || undefined,
+                      }))
+                    }
+                    className={`w-full border rounded px-3 py-2 ${errors.payerAddress ? 'border-red-600' : ''}`}
+                    aria-invalid={!!errors.payerAddress}
+                    aria-describedby="payerAddress-error"
+                  />
+                  {errors.payerAddress && (
+                    <p id="payerAddress-error" className="text-red-600 text-sm mt-1">{errors.payerAddress}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
   
         <div>
@@ -1392,56 +1538,58 @@ try {
  </div>
 
 
- <div className="md:col-span-2 mt-6">
-  <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
-  <div
-    role="radiogroup"
-    aria-labelledby="payment-terms-label"
-    aria-invalid={!!errors.paymentTerms}
-    aria-describedby={errors.paymentTerms ? "payment-terms-error" : undefined}
-    className="flex flex-col gap-2"
-  >
-    <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
+{formData.requestType === 'newAccount' && (
+  <div className="md:col-span-2 mt-6">
+    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
+    <div
+      role="radiogroup"
+      aria-labelledby="payment-terms-label"
+      aria-invalid={!!errors.paymentTerms}
+      aria-describedby={errors.paymentTerms ? "payment-terms-error" : undefined}
+      className="flex flex-col gap-2"
+    >
+      <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
 
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="creditCard"
-        checked={formData.paymentTerms === "creditCard"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-      />
-      {options.paymentTerms.creditCard}
-    </label>
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="radio"
+          name="paymentTerms"
+          value="creditCard"
+          checked={formData.paymentTerms === "creditCard"}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
+            }))
+          }
+        />
+        {options.paymentTerms.creditCard}
+      </label>
 
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="net30"
-        checked={formData.paymentTerms === "net30"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-      />
-      {options.paymentTerms.net30}
-    </label>
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="radio"
+          name="paymentTerms"
+          value="net30"
+          checked={formData.paymentTerms === "net30"}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
+            }))
+          }
+        />
+        {options.paymentTerms.net30}
+      </label>
+    </div>
+
+    {errors.paymentTerms && (
+      <p id="payment-terms-error" className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
+    )}
   </div>
-
-  {errors.paymentTerms && (
-    <p id="payment-terms-error" className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
-  )}
-</div>
+)}
 
 
 
