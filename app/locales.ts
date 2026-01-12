@@ -33,6 +33,17 @@ export const MESSAGES = {
       email: { label: "Email" }, // PDF uses "Email Address"
       billTo: { label: "Bill To Address" },
       shipTo: { label: "Ship To Address" },
+      requestType: {
+        label: "I want to request:",
+        options: {
+          newAccount: "New account",
+          addShipTo: "Add a ship-to to an existing account",
+        },
+        addShipToNote:
+          "The following information is required to accurately link the new Ship-to to an existing account in our records",
+      },
+      existingAccountInfo: { label: "Existing account number and/or payer name" },
+      payerAddress: { label: "Payer address" },
 
       // Accounts payable (not present as-is in PDF)
       apContact: { label: "Accounts Payable Contact" }, // NOT IN PDF
@@ -48,6 +59,7 @@ export const MESSAGES = {
       typeOfBusiness: { label: "Type of Business" },
       annualSales: { label: "Annual Sales" },
       resell: { label: "Will the product be resold or distributed?" },
+      intendedDistribution: { label: "Intended geographical distribution" },
       creditAmount: { label: "Credit Amount Requested" },
       products: { label: "Products Interested in Purchasing" },
       initialOrder: { label: "Estimated Initial Order" },
@@ -123,6 +135,10 @@ export const MESSAGES = {
         { value: "yes", label: "Yes" },
         { value: "no", label: "No" },
       ],
+
+      intendedDistribution: {
+        canadaWide: "Canada wide",
+      },
 
       taxable: [
         { value: "", label: "Select" }, // NOT IN PDF
@@ -224,6 +240,7 @@ export const MESSAGES = {
       phone10Digits: "{label} must have 10 digits.",
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
+      intendedDistributionRequired: "Select at least one distribution option.",
     },
 
     alerts: {
@@ -235,6 +252,7 @@ export const MESSAGES = {
     email: {
       subject: "Customer Application Form – Canada", // NOT IN PDF
       section_requestSummary: "Request Summary", // NOT IN PDF
+      section_requestDetails: "Request Details",
       submittedAt: "Submitted At", // NOT IN PDF
       section_customerInfo: "Customer Information", // NOT IN PDF
       section_addresses: "Addresses", // NOT IN PDF
@@ -283,6 +301,17 @@ export const MESSAGES = {
       email: { label: "Adresse courriel" },
       billTo: { label: "Adresse de facturation" },
       shipTo: { label: "Adresse de livraison" },
+      requestType: {
+        label: "Je veux demander :",
+        options: {
+          newAccount: "Nouveau compte",
+          addShipTo: "Ajouter une adresse de livraison à un compte existant",
+        },
+        addShipToNote:
+          "Les renseignements suivants sont requis pour lier correctement la nouvelle adresse de livraison au compte existant dans nos dossiers",
+      },
+      existingAccountInfo: { label: "Numéro de compte existant et/ou nom du payeur" },
+      payerAddress: { label: "Adresse du payeur" },
 
       // Accounts payable (not present as-is in PDF)
       apContact: { label: "Contact des comptes payables" }, // NOT IN PDF
@@ -298,6 +327,7 @@ export const MESSAGES = {
       typeOfBusiness: { label: "Genre d’industrie" },
       annualSales: { label: "Ventes annuelles" },
       resell: { label: "Les produits sont pour vente ou distribution" },
+      intendedDistribution: { label: "Répartition géographique prévue" },
       creditAmount: { label: "Marge de crédit désirée" },
       products: { label: "Produit(s) que vous désirez acheter" },
       initialOrder: { label: "Estimée de la première commande" },
@@ -373,6 +403,10 @@ export const MESSAGES = {
         { value: "yes", label: "Oui" },
         { value: "no", label: "Non" },
       ],
+
+      intendedDistribution: {
+        canadaWide: "Partout au Canada",
+      },
 
       taxable: [
         { value: "", label: "Sélectionner" }, // NOT IN PDF
@@ -473,6 +507,7 @@ export const MESSAGES = {
       phone10Digits: "{label} doit comporter 10 chiffres.",
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
+      intendedDistributionRequired: "Sélectionnez au moins une option de distribution.",
     },
 
     alerts: {
@@ -484,6 +519,7 @@ export const MESSAGES = {
     email: {
       subject: "Formulaire de demande client – Canada", // NOT IN PDF
       section_requestSummary: "Résumé de la demande", // NOT IN PDF
+      section_requestDetails: "Détails de la demande",
       submittedAt: "Soumis le", // NOT IN PDF
       section_customerInfo: "Informations client", // NOT IN PDF
       section_addresses: "Adresses", // NOT IN PDF
@@ -518,6 +554,7 @@ export const NOT_IN_PDF_KEYS = [
   "fields.trade.email.label",
   "fields.primarySegment.label",
   "fields.secondarySegment.label",
+  "fields.intendedDistribution.label",
   "fields.requestorName.label",
   "placeholders.*",
   "errors.*",

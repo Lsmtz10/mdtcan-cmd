@@ -10,6 +10,24 @@ import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
 
 
+const EMAIL_TARGETS = {
+  customerMasterData: [
+    "luis.sergio.martinez@medtronic.com",
+    "ricardo.a.morcillo@medtronic.com",
+  ],
+  channelManagement: ["libia.poveda@medtronic.com"],
+  creditTeam: ["josmy.cahuamari@medtronic.com"],
+  taxesTeam: ["lsmtz10@hotmail.com"],
+} satisfies Record<string, string[]>;
+
+const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
+  "0 - 25,000",
+  "25,001 – 50,000",
+  "0 - 25 000",
+  "25 001 – 50 000",
+]);
+
+
 const getTodayDate = () => {
   const now = new Date();
   // Ajusta por el offset de tu zona horaria y toma solo la parte de fecha local
@@ -24,6 +42,10 @@ export default function Home() {
   const messages = MESSAGES[locale];
 
   const [formData, setFormData] = useState<Record<string, string>>({
+    requestType: 'newAccount',
+    formEmailTo: EMAIL_TARGETS.customerMasterData.join(", "),
+    formEmailCc: '',
+    textInstruction: '',
 
     legalName: '',
     city: '',
@@ -38,12 +60,15 @@ export default function Home() {
     apContact: '',
     apPhone: '',
     apEmail: '',
+    existingAccountInfo: '',
+    payerAddress: '',
     paymentTerms: '',
     typeOfOrganization: '',
     yearsInBusiness: '',
     typeOfBusiness: '',
     annualSales: '',
     resell: '',
+    intendedDistribution: '',
     creditAmount: '',
     products: '',
     initialOrder: '',
@@ -96,15 +121,60 @@ export default function Home() {
     bankEmail?: string;
     bankAccountNumber?: string;
     email?: string;
-  }>({});
+ }>({});
  */
 
 
+  const [intendedDistribution, setIntendedDistribution] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
     setErrors({});
   }, [locale]);
+
+  function computeEmailRouting(fd: Record<string, string>) {
+    let to = [...EMAIL_TARGETS.customerMasterData];
+    let cc: string[] = [];
+    let textInstruction = "";
+    let confirmationVariant: "default" | "resellYes" | "lowPurchase" = "default";
+
+    const isResellYes = fd.resell === "yes";
+    const annual = fd.annualPurchase ?? "";
+    const isLowAnnual = LOW_ANNUAL_PURCHASE_VALUES.has(annual);
+    const isNet30 = fd.paymentTerms === "net30";
+
+    if (isResellYes) {
+      to = [...EMAIL_TARGETS.channelManagement];
+      cc = [...EMAIL_TARGETS.customerMasterData];
+      textInstruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES ";
+      confirmationVariant = "resellYes";
+    } else {
+      if (isLowAnnual) {
+        to = [...EMAIL_TARGETS.customerMasterData];
+        cc = [...EMAIL_TARGETS.channelManagement];
+        textInstruction = "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
+        confirmationVariant = "lowPurchase";
+      } else {
+        to = [...EMAIL_TARGETS.customerMasterData];
+        cc = [];
+        textInstruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
+        confirmationVariant = "default";
+      }
+    }
+
+    if (isNet30) {
+      const toSet = new Set(to);
+      EMAIL_TARGETS.creditTeam.forEach(e => toSet.add(e));
+      to = Array.from(toSet);
+    }
+
+    return {
+      to: to.join(", "),
+      cc: Array.from(new Set(cc)).join(", "),
+      textInstruction,
+      confirmationVariant,
+    };
+  }
 
   const formatMessage = (template: string, replacements: Record<string, string | number>) =>
     Object.entries(replacements).reduce(
@@ -153,6 +223,9 @@ const PROVINCES_CA = [
   "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
   "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
 ] as const;
+
+const CANADA_WIDE_OPTION = "Canada wide";
+const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...PROVINCES_CA] as const;
 
 const PROVINCES_SET = new Set<string>(PROVINCES_CA);
 
@@ -245,17 +318,16 @@ function validateResell(value: string): string | null {
   return null;
 }
 
-const ANNUAL_PURCHASE_OPTIONS = [
-  "0 - 25,000",
-  "25,001 – 50,000",
-  "50,001 – 100,000",
-  "100,001 or above",
-] as const;
-const ANNUAL_PURCHASE_SET = new Set<string>(ANNUAL_PURCHASE_OPTIONS);
+function validateIntendedDistribution(selected: string[], resellValue: string): string | null {
+  if (resellValue !== "yes") return null;
+  if (!selected.length) return messages.errors.intendedDistributionRequired;
+  return null;
+}
 
 function validateAnnualPurchase(value: string): string | null {
   if (!value) return `${messages.fields.annualPurchase.label} ${messages.errors.requiredSuffix}`;
-  if (!ANNUAL_PURCHASE_SET.has(value)) return messages.errors.invalidOption;
+  const validValues = new Set<string>(messages.options.annualPurchase.map(opt => String(opt.value)));
+  if (!validValues.has(value)) return messages.errors.invalidOption;
   return null;
 }
 
@@ -314,7 +386,10 @@ function validateTradeField(name: string, override?: string): string | null {
     case 'Address':
       return validateRequired(raw, required, `${tradeGroupLabel} ${messages.fields.trade.address.label}`);
     case 'Contact':
-      return required ? formatMessage(messages.errors.tradeRefContactRequired, { idx }) : null;
+      if (required && !raw) {
+        return formatMessage(messages.errors.tradeRefContactRequired, { idx });
+      }
+      return null;
     default:
       return null;
   }
@@ -337,11 +412,6 @@ function tradeLabel(field: string): string {
 
 
 
-
-
-
-
-
 function handlePhoneFieldChange(
   field: "telephone" | "apPhone" | "fax",
   required: boolean,
@@ -359,6 +429,34 @@ function handlePhoneFieldChange(
   setErrors(prev => ({ ...prev, [field]: msg || undefined }));
 }
 
+function nextDistributionSelection(value: string, checked: boolean, current: string[]): string[] {
+  const currentSet = new Set(current);
+
+  if (value === CANADA_WIDE_OPTION) {
+    return checked ? [...DISTRIBUTION_OPTIONS] : [];
+  }
+
+  if (checked) {
+    currentSet.add(value);
+    currentSet.delete(CANADA_WIDE_OPTION); // manual picks do not auto-set Canada wide
+    return Array.from(currentSet);
+  }
+
+  // Unchecking a province removes it and also drops Canada wide if it was on
+  currentSet.delete(value);
+  currentSet.delete(CANADA_WIDE_OPTION);
+  return Array.from(currentSet);
+}
+
+function handleDistributionCheckbox(value: string, checked: boolean) {
+  const nextSelection = nextDistributionSelection(value, checked, intendedDistribution);
+  setIntendedDistribution(nextSelection);
+  setFormData(prev => ({ ...prev, intendedDistribution: nextSelection.join(", ") }));
+
+  const msg = validateIntendedDistribution(nextSelection, formData.resell);
+  setErrors(prev => ({ ...prev, intendedDistribution: msg || undefined }));
+}
+
   const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<
     string,
     ReadonlyArray<{ value: string; label: string }>
@@ -369,6 +467,24 @@ function handlePhoneFieldChange(
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    if (name === "requestType") {
+      const nextType = value;
+      setFormData(prev => ({
+        ...prev,
+        requestType: nextType,
+        paymentTerms: nextType === "newAccount" ? prev.paymentTerms : "",
+      }));
+      setErrors(prev => {
+        const next = { ...prev };
+        next.paymentTerms = undefined;
+        next.requestType = undefined;
+        next.existingAccountInfo = undefined;
+        next.payerAddress = undefined;
+        return next;
+      });
+      return;
+    }
 
     if (name === "legalName") {
       const cleaned = value
@@ -461,6 +577,28 @@ if (name === "city") {
       return;
     }
    
+    if (name === "existingAccountInfo") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const required = formData.requestType === "addShipTo";
+      setFormData(prev => ({ ...prev, existingAccountInfo: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        existingAccountInfo: validateRequired(cleaned, required, messages.fields.existingAccountInfo.label) || undefined,
+      }));
+      return;
+    }
+
+    if (name === "payerAddress") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const required = formData.requestType === "addShipTo";
+      setFormData(prev => ({ ...prev, payerAddress: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        payerAddress: validateRequired(cleaned, required, messages.fields.payerAddress.label) || undefined,
+      }));
+      return;
+    }
+
 
     if (name === "requestorEmail") {
       const cleaned = value.normalize("NFC").replace(/\s/g, "");
@@ -500,10 +638,26 @@ if (name === "city") {
        
 
     if (name === "resell") {
-      setFormData(prev => ({ ...prev, resell: value }));
+      const nextResell = value;
+      const keepDistribution = nextResell === "yes";
+      if (!keepDistribution) {
+        setIntendedDistribution([]);
+      }
+      const distributionSelection = keepDistribution ? intendedDistribution : [];
+
+      const distributionMsg = distributionSelection.length
+        ? validateIntendedDistribution(distributionSelection, nextResell)
+        : null;
+
+      setFormData(prev => ({
+        ...prev,
+        resell: nextResell,
+        intendedDistribution: distributionSelection.join(", "),
+      }));
       setErrors(prev => ({
         ...prev,
-        resell: validateResell(value) || undefined,
+        resell: validateResell(nextResell) || undefined,
+        intendedDistribution: distributionMsg || undefined,
       }));
       return;
     }
@@ -725,9 +879,35 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
   const rows: string[] = [];
   const emailText = messages.email;
   const fieldLabels = messages.fields;
+  const requestTypeLabel =
+    fd["requestType"] === "addShipTo"
+      ? fieldLabels.requestType.options.addShipTo
+      : fieldLabels.requestType.options.newAccount;
+  const routingLabels = {
+    to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
+    cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
+  };
+  const instructionLabel = locale === "fr" ? "Instruction" : "Instruction";
+  const primaryKey = fd["primarySegment"] as keyof typeof messages.options.segmentation.secondaryByPrimary;
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary[primaryKey] ?? [];
+  const primaryLabel =
+    messages.options.segmentation.primary.find(p => p.value === fd["primarySegment"])?.label ??
+    fd["primarySegment"];
+  const secondaryLabel =
+    secondaryOptions.find(s => s.value === fd["secondarySegment"])?.label ?? fd["secondarySegment"];
 
   rows.push(section(emailText.section_requestSummary));
   rows.push(tr(emailText.submittedAt, timestamp));
+
+  rows.push(section(emailText.section_requestDetails));
+  rows.push(
+    tr(fieldLabels.requestType.label, requestTypeLabel),
+    tr(fieldLabels.existingAccountInfo.label, fd["existingAccountInfo"]),
+    tr(fieldLabels.payerAddress.label, fd["payerAddress"]),
+    tr(routingLabels.to, fd["formEmailTo"]),
+    tr(routingLabels.cc, fd["formEmailCc"]),
+    tr(instructionLabel, fd["textInstruction"]),
+  );
 
   rows.push(section(emailText.section_customerInfo));
   rows.push(
@@ -765,6 +945,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
       tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
       tr(fieldLabels.resell.label,          fd["resell"]),
+      tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
       tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
       tr(fieldLabels.products.label, fd["products"]),
       tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
@@ -799,6 +980,12 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       );
     }
   }
+
+  rows.push(section(messages.sections.customerSegmentation));
+  rows.push(
+    tr(fieldLabels.primarySegment.label, primaryLabel),
+    tr(fieldLabels.secondarySegment.label, secondaryLabel),
+  );
 
   rows.push(section(messages.sections.finalInformation));
   rows.push(
@@ -868,8 +1055,15 @@ const handleSubmit = async () => {
   const apMsg  = validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label);
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
-  const payMsg = validatePaymentTerms(formData.paymentTerms);
+  const payMsg = formData.requestType === "newAccount" ? validatePaymentTerms(formData.paymentTerms) : null;
+  const existingAccountMsg = formData.requestType === "addShipTo"
+    ? validateRequired(formData.existingAccountInfo, true, messages.fields.existingAccountInfo.label)
+    : null;
+  const payerAddressMsg = formData.requestType === "addShipTo"
+    ? validateRequired(formData.payerAddress, true, messages.fields.payerAddress.label)
+    : null;
   const resellMsg = validateResell(formData.resell);
+  const distributionMsg = validateIntendedDistribution(intendedDistribution, formData.resell);
   const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
   const typeOrgMsg = validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label);
   const typeBusinessMsg = validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label);
@@ -911,7 +1105,7 @@ if (formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -919,7 +1113,10 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     fax: faxMsg || undefined,
     apEmail: apEmailMsg || undefined,
     paymentTerms: payMsg || undefined,
+    existingAccountInfo: existingAccountMsg || undefined,
+    payerAddress: payerAddressMsg || undefined,
     resell: resellMsg || undefined,
+    intendedDistribution: distributionMsg || undefined,
     annualPurchase: annualPurchaseMsg || undefined,
     typeOfOrganization: typeOrgMsg || undefined,
     typeOfBusiness: typeBusinessMsg || undefined,
@@ -960,13 +1157,21 @@ if (Object.keys(tradeErrs).length > 0) {
 
 
 
+const routing = computeEmailRouting(formData);
+const finalForm = {
+  ...formData,
+  formEmailTo: routing.to,
+  formEmailCc: routing.cc,
+  textInstruction: routing.textInstruction,
+};
+
 // Fallback en texto (manténlo por compatibilidad con tu template actual)
-const formattedData = Object.entries(formData)
+const formattedData = Object.entries(finalForm)
   .map(([key, value]) => `${key}: ${value}`)
   .join('\n');
 
 // Construye el HTML con etiquetas amigables y secciones condicionales
-const formHtml = buildEmailHtml(formData, timestamp);
+const formHtml = buildEmailHtml(finalForm, timestamp);
 
 try {
   await emailjs.send(
@@ -976,11 +1181,14 @@ try {
       formHtml,            // <-- usa esto en tu plantilla
       formData: formattedData, // <-- respaldo de texto
       timestamp: timestamp,
+      formEmailTo: finalForm.formEmailTo,
+      formEmailCc: finalForm.formEmailCc,
+      textInstruction: finalForm.textInstruction,
     },
     'BhNrfAyGnu7vx_rYL'    // Public Key
   );
 
-  router.push('/confirmation');
+  router.push(`/confirmation?variant=${routing.confirmationVariant}&locale=${locale}`);
 
   
     
@@ -1007,6 +1215,14 @@ try {
 
 
   const { fields, placeholders, sections, options, page } = messages;
+  const distributionOptions = [
+    { value: CANADA_WIDE_OPTION, label: options.intendedDistribution.canadaWide },
+    ...options.provinces,
+  ];
+  const pdfFilename = locale === 'fr'
+    ? "Credit Application Form - Fr version - Jan25.pdf"
+    : "Credit Application Form - En version - Jan25.pdf";
+  const pdfUrl = encodeURI(`/${pdfFilename}`);
 
   return (
 
@@ -1036,6 +1252,15 @@ try {
   </div>
 </div>
 
+<div className="flex justify-end mb-4">
+  <a
+    href={pdfUrl}
+    download={pdfFilename}
+    className="text-[#170f5f] underline hover:text-[#1f1790]"
+  >
+    {page.downloadPdf}
+  </a>
+</div>
 
 
 
@@ -1044,7 +1269,91 @@ try {
              onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
                >
         
-   
+        <div className="md:col-span-2 border rounded px-4 py-3 bg-[#f9fafb]">
+          <p className="font-semibold mb-2">{fields.requestType.label}</p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="requestType"
+                value="newAccount"
+                checked={formData.requestType === "newAccount"}
+                onChange={handleChange}
+              />
+              {fields.requestType.options.newAccount}
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="requestType"
+                value="addShipTo"
+                checked={formData.requestType === "addShipTo"}
+                onChange={handleChange}
+              />
+              {fields.requestType.options.addShipTo}
+            </label>
+          </div>
+
+          {formData.requestType === "addShipTo" && (
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-gray-700">{fields.requestType.addShipToNote}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1" htmlFor="existingAccountInfo">{fields.existingAccountInfo.label}</label>
+                  <textarea
+                    id="existingAccountInfo"
+                    name="existingAccountInfo"
+                    rows={2}
+                    value={formData.existingAccountInfo}
+                    onChange={handleChange}
+                    onBlur={() =>
+                      setErrors(prev => ({
+                        ...prev,
+                        existingAccountInfo: validateRequired(
+                          formData.existingAccountInfo,
+                          true,
+                          fields.existingAccountInfo.label
+                        ) || undefined,
+                      }))
+                    }
+                    className={`w-full border rounded px-3 py-2 ${errors.existingAccountInfo ? 'border-red-600' : ''}`}
+                    aria-invalid={!!errors.existingAccountInfo}
+                    aria-describedby="existingAccountInfo-error"
+                  />
+                  {errors.existingAccountInfo && (
+                    <p id="existingAccountInfo-error" className="text-red-600 text-sm mt-1">{errors.existingAccountInfo}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block mb-1" htmlFor="payerAddress">{fields.payerAddress.label}</label>
+                  <textarea
+                    id="payerAddress"
+                    name="payerAddress"
+                    rows={2}
+                    value={formData.payerAddress}
+                    onChange={handleChange}
+                    onBlur={() =>
+                      setErrors(prev => ({
+                        ...prev,
+                        payerAddress: validateRequired(
+                          formData.payerAddress,
+                          true,
+                          fields.payerAddress.label
+                        ) || undefined,
+                      }))
+                    }
+                    className={`w-full border rounded px-3 py-2 ${errors.payerAddress ? 'border-red-600' : ''}`}
+                    aria-invalid={!!errors.payerAddress}
+                    aria-describedby="payerAddress-error"
+                  />
+                  {errors.payerAddress && (
+                    <p id="payerAddress-error" className="text-red-600 text-sm mt-1">{errors.payerAddress}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
   
         <div>
@@ -1326,56 +1635,58 @@ try {
  </div>
 
 
- <div className="md:col-span-2 mt-6">
-  <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
-  <div
-    role="radiogroup"
-    aria-labelledby="payment-terms-label"
-    aria-invalid={!!errors.paymentTerms}
-    aria-describedby={errors.paymentTerms ? "payment-terms-error" : undefined}
-    className="flex flex-col gap-2"
-  >
-    <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
+{formData.requestType === 'newAccount' && (
+  <div className="md:col-span-2 mt-6">
+    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
+    <div
+      role="radiogroup"
+      aria-labelledby="payment-terms-label"
+      aria-invalid={!!errors.paymentTerms}
+      aria-describedby={errors.paymentTerms ? "payment-terms-error" : undefined}
+      className="flex flex-col gap-2"
+    >
+      <span id="payment-terms-label" className="sr-only">{fields.paymentTerms.label}</span>
 
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="creditCard"
-        checked={formData.paymentTerms === "creditCard"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-      />
-      {options.paymentTerms.creditCard}
-    </label>
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="radio"
+          name="paymentTerms"
+          value="creditCard"
+          checked={formData.paymentTerms === "creditCard"}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
+            }))
+          }
+        />
+        {options.paymentTerms.creditCard}
+      </label>
 
-    <label className="inline-flex items-center gap-2">
-      <input
-        type="radio"
-        name="paymentTerms"
-        value="net30"
-        checked={formData.paymentTerms === "net30"}
-        onChange={handleChange}
-        onBlur={() =>
-          setErrors(prev => ({
-            ...prev,
-            paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
-          }))
-        }
-      />
-      {options.paymentTerms.net30}
-    </label>
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="radio"
+          name="paymentTerms"
+          value="net30"
+          checked={formData.paymentTerms === "net30"}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              paymentTerms: validatePaymentTerms(formData.paymentTerms) || undefined
+            }))
+          }
+        />
+        {options.paymentTerms.net30}
+      </label>
+    </div>
+
+    {errors.paymentTerms && (
+      <p id="payment-terms-error" className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
+    )}
   </div>
-
-  {errors.paymentTerms && (
-    <p id="payment-terms-error" className="text-red-600 text-sm mt-1">{errors.paymentTerms}</p>
-  )}
-</div>
+)}
 
 
 
@@ -1457,6 +1768,35 @@ try {
                 <p id="resell-error" className="text-red-600 text-sm mt-1">{errors.resell}</p>
               )}
             </div>
+            {formData.resell === 'yes' && (
+              <fieldset
+                className={`border rounded px-3 py-2 ${errors.intendedDistribution ? 'border-red-600' : ''}`}
+                aria-invalid={!!errors.intendedDistribution}
+                aria-describedby="intendedDistribution-error"
+              >
+                <legend className="px-1 text-sm font-medium">{fields.intendedDistribution.label}</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                  {distributionOptions.map(opt => {
+                    const checked = intendedDistribution.includes(opt.value);
+                    return (
+                      <label key={opt.value} className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="intendedDistribution"
+                          value={opt.value}
+                          checked={checked}
+                          onChange={(e) => handleDistributionCheckbox(opt.value, e.target.checked)}
+                        />
+                        {opt.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                {errors.intendedDistribution && (
+                  <p id="intendedDistribution-error" className="text-red-600 text-sm mt-2">{errors.intendedDistribution}</p>
+                )}
+              </fieldset>
+            )}
             <div>
               <label className="block mb-1">{fields.products.label}</label>
               <textarea
