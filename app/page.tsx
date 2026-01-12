@@ -10,6 +10,24 @@ import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
 
 
+const EMAIL_TARGETS = {
+  customerMasterData: [
+    "luis.sergio.martinez@medtronic.com",
+    "ricardo.a.morcillo@medtronic.com",
+  ],
+  channelManagement: ["libia.poveda@medtronic.com"],
+  creditTeam: ["josmy.cahuamari@medtronic.com"],
+  taxesTeam: ["lsmtz10@hotmail.com"],
+} satisfies Record<string, string[]>;
+
+const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
+  "0 - 25,000",
+  "25,001 – 50,000",
+  "0 - 25 000",
+  "25 001 – 50 000",
+]);
+
+
 const getTodayDate = () => {
   const now = new Date();
   // Ajusta por el offset de tu zona horaria y toma solo la parte de fecha local
@@ -25,6 +43,9 @@ export default function Home() {
 
   const [formData, setFormData] = useState<Record<string, string>>({
     requestType: 'newAccount',
+    formEmailTo: EMAIL_TARGETS.customerMasterData.join(", "),
+    formEmailCc: '',
+    textInstruction: '',
 
     legalName: '',
     city: '',
@@ -110,6 +131,50 @@ export default function Home() {
   useEffect(() => {
     setErrors({});
   }, [locale]);
+
+  function computeEmailRouting(fd: Record<string, string>) {
+    let to = [...EMAIL_TARGETS.customerMasterData];
+    let cc: string[] = [];
+    let textInstruction = "";
+    let confirmationVariant: "default" | "resellYes" | "lowPurchase" = "default";
+
+    const isResellYes = fd.resell === "yes";
+    const annual = fd.annualPurchase ?? "";
+    const isLowAnnual = LOW_ANNUAL_PURCHASE_VALUES.has(annual);
+    const isNet30 = fd.paymentTerms === "net30";
+
+    if (isResellYes) {
+      to = [...EMAIL_TARGETS.channelManagement];
+      cc = [...EMAIL_TARGETS.customerMasterData];
+      textInstruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES ";
+      confirmationVariant = "resellYes";
+    } else {
+      if (isLowAnnual) {
+        to = [...EMAIL_TARGETS.customerMasterData];
+        cc = [...EMAIL_TARGETS.channelManagement];
+        textInstruction = "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
+        confirmationVariant = "lowPurchase";
+      } else {
+        to = [...EMAIL_TARGETS.customerMasterData];
+        cc = [];
+        textInstruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
+        confirmationVariant = "default";
+      }
+    }
+
+    if (isNet30) {
+      const toSet = new Set(to);
+      EMAIL_TARGETS.creditTeam.forEach(e => toSet.add(e));
+      to = Array.from(toSet);
+    }
+
+    return {
+      to: to.join(", "),
+      cc: Array.from(new Set(cc)).join(", "),
+      textInstruction,
+      confirmationVariant,
+    };
+  }
 
   const formatMessage = (template: string, replacements: Record<string, string | number>) =>
     Object.entries(replacements).reduce(
@@ -818,6 +883,18 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     fd["requestType"] === "addShipTo"
       ? fieldLabels.requestType.options.addShipTo
       : fieldLabels.requestType.options.newAccount;
+  const routingLabels = {
+    to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
+    cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
+  };
+  const instructionLabel = locale === "fr" ? "Instruction" : "Instruction";
+  const primaryKey = fd["primarySegment"] as keyof typeof messages.options.segmentation.secondaryByPrimary;
+  const secondaryOptions = messages.options.segmentation.secondaryByPrimary[primaryKey] ?? [];
+  const primaryLabel =
+    messages.options.segmentation.primary.find(p => p.value === fd["primarySegment"])?.label ??
+    fd["primarySegment"];
+  const secondaryLabel =
+    secondaryOptions.find(s => s.value === fd["secondarySegment"])?.label ?? fd["secondarySegment"];
 
   rows.push(section(emailText.section_requestSummary));
   rows.push(tr(emailText.submittedAt, timestamp));
@@ -827,6 +904,9 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     tr(fieldLabels.requestType.label, requestTypeLabel),
     tr(fieldLabels.existingAccountInfo.label, fd["existingAccountInfo"]),
     tr(fieldLabels.payerAddress.label, fd["payerAddress"]),
+    tr(routingLabels.to, fd["formEmailTo"]),
+    tr(routingLabels.cc, fd["formEmailCc"]),
+    tr(instructionLabel, fd["textInstruction"]),
   );
 
   rows.push(section(emailText.section_customerInfo));
@@ -900,6 +980,12 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       );
     }
   }
+
+  rows.push(section(messages.sections.customerSegmentation));
+  rows.push(
+    tr(fieldLabels.primarySegment.label, primaryLabel),
+    tr(fieldLabels.secondarySegment.label, secondaryLabel),
+  );
 
   rows.push(section(messages.sections.finalInformation));
   rows.push(
@@ -1071,13 +1157,21 @@ if (Object.keys(tradeErrs).length > 0) {
 
 
 
+const routing = computeEmailRouting(formData);
+const finalForm = {
+  ...formData,
+  formEmailTo: routing.to,
+  formEmailCc: routing.cc,
+  textInstruction: routing.textInstruction,
+};
+
 // Fallback en texto (manténlo por compatibilidad con tu template actual)
-const formattedData = Object.entries(formData)
+const formattedData = Object.entries(finalForm)
   .map(([key, value]) => `${key}: ${value}`)
   .join('\n');
 
 // Construye el HTML con etiquetas amigables y secciones condicionales
-const formHtml = buildEmailHtml(formData, timestamp);
+const formHtml = buildEmailHtml(finalForm, timestamp);
 
 try {
   await emailjs.send(
@@ -1087,11 +1181,14 @@ try {
       formHtml,            // <-- usa esto en tu plantilla
       formData: formattedData, // <-- respaldo de texto
       timestamp: timestamp,
+      formEmailTo: finalForm.formEmailTo,
+      formEmailCc: finalForm.formEmailCc,
+      textInstruction: finalForm.textInstruction,
     },
     'BhNrfAyGnu7vx_rYL'    // Public Key
   );
 
-  router.push('/confirmation');
+  router.push(`/confirmation?variant=${routing.confirmationVariant}&locale=${locale}`);
 
   
     
