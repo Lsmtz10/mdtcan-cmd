@@ -937,24 +937,26 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
                                    : fd["paymentTerms"]),
   );
 
+  rows.push(section(emailText.section_companyInformation));
+  rows.push(
+    tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
+    tr(fieldLabels.yearsInBusiness.label,             fd["yearsInBusiness"]),
+    tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
+    tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
+    tr(fieldLabels.resell.label,          fd["resell"]),
+    tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
+    tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
+    tr(fieldLabels.products.label, fd["products"]),
+  );
+
   if (fd["paymentTerms"] === "net30") {
-    rows.push(section(emailText.section_companyInformation));
     rows.push(
-      tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
-      tr(fieldLabels.yearsInBusiness.label,             fd["yearsInBusiness"]),
-      tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
-      tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
-      tr(fieldLabels.resell.label,          fd["resell"]),
-      tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
-      tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
-      tr(fieldLabels.products.label, fd["products"]),
       tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
       tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
       tr(fieldLabels.taxable.label,                       fd["taxable"]),
       tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
       tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
     );
-
     rows.push(section(emailText.section_bankReferences));
     rows.push(
       tr(fieldLabels.bankName.label,        fd["bankName"]),
@@ -1002,12 +1004,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
   </div>`;
 }
-
-
-
-
-
-
 
 
 const handleSubmit = async () => {
