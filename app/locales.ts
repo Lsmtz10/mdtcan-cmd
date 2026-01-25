@@ -67,6 +67,7 @@ export const MESSAGES = {
       taxable: { label: "Taxable" },
       gstTaxExempt: { label: "If GST non-taxable, provide Tax Exempt Certificate #:" },
       pstTaxExempt: { label: "If PST non-taxable, provide Tax Exempt Certificate #:" },
+      taxExemptFile: { label: "Tax Exempt Certificate (PDF, max 3 MB)" },
 
       // Bank references
       bankName: { label: "Bank Name" },
@@ -241,6 +242,9 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
       intendedDistributionRequired: "Select at least one distribution option.",
+      taxExemptFileRequired: "Tax exempt certificate PDF is required.",
+      taxExemptFileType: "File must be a PDF.",
+      taxExemptFileSize: "File must be 3 MB or less.",
     },
 
     alerts: {
@@ -335,6 +339,7 @@ export const MESSAGES = {
       taxable: { label: "Taxable" },
       gstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TPS:" },
       pstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TVQ:" },
+      taxExemptFile: { label: "Certificat d'exemption (PDF, 3 MB max)" },
 
       // Bank references
       bankName: { label: "Nom de la banque" },
@@ -508,6 +513,9 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
       intendedDistributionRequired: "Sélectionnez au moins une option de distribution.",
+      taxExemptFileRequired: "Le certificat d'exemption (PDF) est requis.",
+      taxExemptFileType: "Le fichier doit etre un PDF.",
+      taxExemptFileSize: "Le fichier doit faire 3 MB ou moins.",
     },
 
     alerts: {
@@ -552,6 +560,7 @@ export const NOT_IN_PDF_KEYS = [
   "fields.trade.groupTitle",
   "fields.trade.contact.label",
   "fields.trade.email.label",
+  "fields.taxExemptFile.label",
   "fields.primarySegment.label",
   "fields.secondarySegment.label",
   "fields.intendedDistribution.label",

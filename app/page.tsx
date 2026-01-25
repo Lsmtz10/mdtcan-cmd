@@ -4,28 +4,12 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-import emailjs from '@emailjs/browser'
-
 import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
+import { EMAIL_TARGETS, LOW_ANNUAL_PURCHASE_VALUES } from '@/app/lib/emailTargets';
 
 
-const EMAIL_TARGETS = {
-  customerMasterData: [
-    "luis.sergio.martinez@medtronic.com",
-    "ricardo.a.morcillo@medtronic.com",
-  ],
-  channelManagement: ["libia.poveda@medtronic.com"],
-  creditTeam: ["josmy.cahuamari@medtronic.com"],
-  taxesTeam: ["lsmtz10@hotmail.com"],
-} satisfies Record<string, string[]>;
 
-const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
-  "0 - 25,000",
-  "25,001 – 50,000",
-  "0 - 25 000",
-  "25 001 – 50 000",
-]);
 
 
 const getTodayDate = () => {
@@ -127,6 +111,8 @@ export default function Home() {
 
   const [intendedDistribution, setIntendedDistribution] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [taxExemptFile, setTaxExemptFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setErrors({});
@@ -338,6 +324,17 @@ function validateRequired(value: string, required: boolean, label: string): stri
   return null;
 }
 
+const TAX_EXEMPT_MAX_BYTES = 3 * 1024 * 1024;
+
+function validateTaxExemptFile(file: File | null, required: boolean): string | null {
+  if (!required) return null;
+  if (!file) return messages.errors.taxExemptFileRequired;
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (!isPdf) return messages.errors.taxExemptFileType;
+  if (file.size > TAX_EXEMPT_MAX_BYTES) return messages.errors.taxExemptFileSize;
+  return null;
+}
+
 
 const TRADE_FIELDS = ['Company','Account','Address','Tel','Contact','Email'] as const;
 
@@ -475,12 +472,16 @@ function handleDistributionCheckbox(value: string, checked: boolean) {
         requestType: nextType,
         paymentTerms: nextType === "newAccount" ? prev.paymentTerms : "",
       }));
+      if (nextType === "addShipTo") {
+        setTaxExemptFile(null);
+      }
       setErrors(prev => {
         const next = { ...prev };
         next.paymentTerms = undefined;
         next.requestType = undefined;
         next.existingAccountInfo = undefined;
         next.payerAddress = undefined;
+        next.taxExemptFile = undefined;
         return next;
       });
       return;
@@ -610,6 +611,21 @@ if (name === "city") {
       return;
     }
 
+    if (name === "taxExemptFile") {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0] ?? null;
+      const required =
+        formData.paymentTerms === "net30" &&
+        formData.taxable === "no" &&
+        formData.requestType !== "addShipTo";
+      setTaxExemptFile(file);
+      setErrors(prev => ({
+        ...prev,
+        taxExemptFile: validateTaxExemptFile(file, required) || undefined,
+      }));
+      return;
+    }
+
     if (name === "paymentTerms") {
       setFormData(prev => ({ ...prev, paymentTerms: value }));
       setErrors(prev => {
@@ -630,9 +646,13 @@ if (name === "city") {
           delete next.creditAmount;
           delete next.initialOrder;
           delete next.taxable;
+          delete next.taxExemptFile;
         }
         return next;
       });
+      if (value !== "net30") {
+        setTaxExemptFile(null);
+      }
       return;
     }
        
@@ -714,10 +734,18 @@ if (name === "city") {
 
     if (name === "taxable") {
       const required = formData.paymentTerms === "net30";
+      const requiresFile =
+        formData.paymentTerms === "net30" &&
+        value === "no" &&
+        formData.requestType !== "addShipTo";
       setFormData(prev => ({ ...prev, taxable: value }));
+      if (value !== "no") {
+        setTaxExemptFile(null);
+      }
       setErrors(prev => ({
         ...prev,
         taxable: validateRequired(value, required, messages.fields.taxable.label) || undefined,
+        taxExemptFile: validateTaxExemptFile(value === "no" ? taxExemptFile : null, requiresFile) || undefined,
       }));
       return;
     }
@@ -1009,7 +1037,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
 
 
 const handleSubmit = async () => {
-  const timestamp = new Date().toISOString();
+  if (isSubmitting) return;
   const isAddShipTo = formData.requestType === "addShipTo";
 
   const msg = validateLegalName(formData.legalName);
@@ -1081,6 +1109,9 @@ const handleSubmit = async () => {
   const taxableMsg = !isAddShipTo && formData.paymentTerms === "net30"
     ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
     : null;
+  const requiresTaxExemptFile =
+    !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no";
+  const taxExemptFileMsg = validateTaxExemptFile(taxExemptFile, requiresTaxExemptFile);
   const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
@@ -1112,7 +1143,7 @@ if (!isAddShipTo && formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -1130,6 +1161,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     products: productsMsg || undefined,
     creditAmount: creditAmountMsg || undefined,
     taxable: taxableMsg || undefined,
+    taxExemptFile: taxExemptFileMsg || undefined,
     requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
   }));
@@ -1165,55 +1197,46 @@ if (Object.keys(tradeErrs).length > 0) {
 
 
 const routing = computeEmailRouting(formData);
-const finalForm = {
-  ...formData,
-  formEmailTo: routing.to,
-  formEmailCc: routing.cc,
-  textInstruction: routing.textInstruction,
-};
 
-// Fallback en texto (manténlo por compatibilidad con tu template actual)
-const formattedData = Object.entries(finalForm)
-  .map(([key, value]) => `${key}: ${value}`)
-  .join('\n');
-
-// Construye el HTML con etiquetas amigables y secciones condicionales
-const formHtml = buildEmailHtml(finalForm, timestamp);
-
+setIsSubmitting(true);
 try {
-  await emailjs.send(
-    'service_i6is1vl',     // Service ID
-    'template_yuvc7fc',    // Template ID
-    {
-      formHtml,            // <-- usa esto en tu plantilla
-      formData: formattedData, // <-- respaldo de texto
-      timestamp: timestamp,
-      formEmailTo: finalForm.formEmailTo,
-      formEmailCc: finalForm.formEmailCc,
-      textInstruction: finalForm.textInstruction,
-    },
-    'BhNrfAyGnu7vx_rYL'    // Public Key
-  );
+  const payload = new FormData();
+  payload.append("formData", JSON.stringify(formData));
+  payload.append("locale", locale);
+  if (taxExemptFile) {
+    payload.append("taxExemptFile", taxExemptFile);
+  }
+  const response = await fetch("/api/submit", {
+    method: "POST",
+    body: payload,
+  });
 
-  router.push(`/confirmation?variant=${routing.confirmationVariant}&locale=${locale}`);
-
-  
-    
-} catch (error: unknown) {
-  let errorMessage: string = messages.alerts.unknownError;
-
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    ('text' in error || 'message' in error)
-  ) {
-    errorMessage = (error as { text?: string; message?: string }).text
-      ?? (error as { text?: string; message?: string }).message
-      ?? messages.alerts.unknownError;
+  if (!response.ok) {
+    let errorMessage = `Request failed (${response.status})`;
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) {
+        errorMessage = data.error;
+      }
+    } catch {
+      try {
+        const text = await response.text();
+        if (text) errorMessage = text;
+      } catch {
+      }
+    }
+    alert(formatMessage(messages.alerts.emailSendError, { errorMessage }));
+    return;
   }
 
-  console.error('Email sending error:', errorMessage);
+  router.push(`/confirmation?variant=${routing.confirmationVariant}&locale=${locale}`);
+} catch (error: unknown) {
+  const errorMessage =
+    error instanceof Error ? error.message : messages.alerts.unknownError;
+  console.error("Submit error:", errorMessage);
   alert(formatMessage(messages.alerts.emailSendError, { errorMessage }));
+} finally {
+  setIsSubmitting(false);
 }
 
 };
@@ -1927,6 +1950,27 @@ try {
   />
 </div>
 
+{formData.taxable === "no" && (
+  <div className="mt-4 md:col-span-2">
+    <label className="block mb-1" htmlFor="taxExemptFile">
+      {fields.taxExemptFile.label}
+    </label>
+    <input
+      id="taxExemptFile"
+      name="taxExemptFile"
+      type="file"
+      accept="application/pdf"
+      onChange={handleChange}
+      className={`w-full border rounded px-3 py-2 ${errors.taxExemptFile ? 'border-red-600' : ''}`}
+      aria-invalid={!!errors.taxExemptFile}
+      aria-describedby="taxExemptFile-error"
+    />
+    {errors.taxExemptFile && (
+      <p id="taxExemptFile-error" className="text-red-600 text-sm mt-1">{errors.taxExemptFile}</p>
+    )}
+  </div>
+)}
+
 
 
             <div className="md:col-span-2 mt-6">
@@ -2225,7 +2269,7 @@ try {
 
 <button
   type="submit"
-  
+  disabled={isSubmitting}
   className="bg-[#170f5f] text-white px-6 py-2 rounded hover:bg-[#1f1790] transition"
 >
   {page.submit}
