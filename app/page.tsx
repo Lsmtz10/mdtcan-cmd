@@ -937,49 +937,51 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
                                    : fd["paymentTerms"]),
   );
 
-  rows.push(section(emailText.section_companyInformation));
-  rows.push(
-    tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
-    tr(fieldLabels.yearsInBusiness.label,             fd["yearsInBusiness"]),
-    tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
-    tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
-    tr(fieldLabels.resell.label,          fd["resell"]),
-    tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
-    tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
-    tr(fieldLabels.products.label, fd["products"]),
-  );
-
-  if (fd["paymentTerms"] === "net30") {
+  if (fd["requestType"] !== "addShipTo") {
+    rows.push(section(emailText.section_companyInformation));
     rows.push(
-      tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
-      tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
-      tr(fieldLabels.taxable.label,                       fd["taxable"]),
-      tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
-      tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
-    );
-    rows.push(section(emailText.section_bankReferences));
-    rows.push(
-      tr(fieldLabels.bankName.label,        fd["bankName"]),
-      tr(fieldLabels.bankAddress.label,     fd["bankAddress"]),
-      tr(fieldLabels.accountManager.label,  fd["accountManager"]),
-      tr(fieldLabels.bankPhone.label,       fd["bankPhone"]),
-      tr(fieldLabels.bankFax.label,         fd["bankFax"]),
-      tr(fieldLabels.bankEmail.label,       fd["bankEmail"]),
-      tr(fieldLabels.bankAccountNumber.label,   fd["bankAccountNumber"]),
+      tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
+      tr(fieldLabels.yearsInBusiness.label,             fd["yearsInBusiness"]),
+      tr(fieldLabels.typeOfBusiness.label,              fd["typeOfBusiness"]),
+      tr(fieldLabels.annualSales.label,                  fd["annualSales"]),
+      tr(fieldLabels.resell.label,          fd["resell"]),
+      tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
+      tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
+      tr(fieldLabels.products.label, fd["products"]),
     );
 
-    rows.push(section(emailText.section_tradeReferences));
-    for (const i of [1, 2, 3] as const) {
-      if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
-      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">${esc(formatMessage(fieldLabels.trade.groupTitle, { idx: i }))}</td></tr>`);
+    if (fd["paymentTerms"] === "net30") {
       rows.push(
-        tr(fieldLabels.trade.company.label,    fd[`tradeCompany${i}`]),
-        tr(fieldLabels.trade.account.label,     fd[`tradeAccount${i}`]),
-        tr(fieldLabels.trade.address.label,         fd[`tradeAddress${i}`]),
-        tr(fieldLabels.trade.tel.label,       fd[`tradeTel${i}`]),
-        tr(fieldLabels.trade.contact.label,  fd[`tradeContact${i}`]),
-        tr(fieldLabels.trade.email.label,           fd[`tradeEmail${i}`]),
+        tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
+        tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
+        tr(fieldLabels.taxable.label,                       fd["taxable"]),
+        tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
+        tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
       );
+      rows.push(section(emailText.section_bankReferences));
+      rows.push(
+        tr(fieldLabels.bankName.label,        fd["bankName"]),
+        tr(fieldLabels.bankAddress.label,     fd["bankAddress"]),
+        tr(fieldLabels.accountManager.label,  fd["accountManager"]),
+        tr(fieldLabels.bankPhone.label,       fd["bankPhone"]),
+        tr(fieldLabels.bankFax.label,         fd["bankFax"]),
+        tr(fieldLabels.bankEmail.label,       fd["bankEmail"]),
+        tr(fieldLabels.bankAccountNumber.label,   fd["bankAccountNumber"]),
+      );
+
+      rows.push(section(emailText.section_tradeReferences));
+      for (const i of [1, 2, 3] as const) {
+        if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
+        rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">${esc(formatMessage(fieldLabels.trade.groupTitle, { idx: i }))}</td></tr>`);
+        rows.push(
+          tr(fieldLabels.trade.company.label,    fd[`tradeCompany${i}`]),
+          tr(fieldLabels.trade.account.label,     fd[`tradeAccount${i}`]),
+          tr(fieldLabels.trade.address.label,         fd[`tradeAddress${i}`]),
+          tr(fieldLabels.trade.tel.label,       fd[`tradeTel${i}`]),
+          tr(fieldLabels.trade.contact.label,  fd[`tradeContact${i}`]),
+          tr(fieldLabels.trade.email.label,           fd[`tradeEmail${i}`]),
+        );
+      }
     }
   }
 
@@ -1008,6 +1010,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
 
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
+  const isAddShipTo = formData.requestType === "addShipTo";
 
   const msg = validateLegalName(formData.legalName);
   if (msg) {
@@ -1052,28 +1055,36 @@ const handleSubmit = async () => {
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
   const payMsg = formData.requestType === "newAccount" ? validatePaymentTerms(formData.paymentTerms) : null;
-  const existingAccountMsg = formData.requestType === "addShipTo"
+  const existingAccountMsg = isAddShipTo
     ? validateRequired(formData.existingAccountInfo, true, messages.fields.existingAccountInfo.label)
     : null;
-  const payerAddressMsg = formData.requestType === "addShipTo"
+  const payerAddressMsg = isAddShipTo
     ? validateRequired(formData.payerAddress, true, messages.fields.payerAddress.label)
     : null;
-  const resellMsg = validateResell(formData.resell);
-  const distributionMsg = validateIntendedDistribution(intendedDistribution, formData.resell);
-  const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
-  const typeOrgMsg = validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label);
-  const typeBusinessMsg = validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label);
-  const productsMsg = validateRequired(formData.products, true, messages.fields.products.label);
-  const creditAmountMsg = formData.paymentTerms === "net30"
+  const resellMsg = !isAddShipTo ? validateResell(formData.resell) : null;
+  const distributionMsg = !isAddShipTo
+    ? validateIntendedDistribution(intendedDistribution, formData.resell)
+    : null;
+  const annualPurchaseMsg = !isAddShipTo ? validateAnnualPurchase(formData.annualPurchase) : null;
+  const typeOrgMsg = !isAddShipTo
+    ? validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label)
+    : null;
+  const typeBusinessMsg = !isAddShipTo
+    ? validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label)
+    : null;
+  const productsMsg = !isAddShipTo
+    ? validateRequired(formData.products, true, messages.fields.products.label)
+    : null;
+  const creditAmountMsg = !isAddShipTo && formData.paymentTerms === "net30"
     ? validateRequired(formData.creditAmount, true, messages.fields.creditAmount.label)
     : null;
-  const taxableMsg = formData.paymentTerms === "net30"
+  const taxableMsg = !isAddShipTo && formData.paymentTerms === "net30"
     ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
     : null;
   const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
-if (formData.paymentTerms === "net30") {
+if (!isAddShipTo && formData.paymentTerms === "net30") {
   const bankNameMsg = validateRequired(formData.bankName, true, messages.fields.bankName.label);
   const acctMgrMsg  = validateRequired(formData.accountManager, true, messages.fields.accountManager.label);
   const bankPhoneMsg = validatePhoneCA(formData.bankPhone, true, messages.fields.bankPhone.label);
@@ -1130,7 +1141,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
 
 
 // --- Trade References: validar SOLO si Net 30 ---
-if (formData.paymentTerms === "net30") {
+if (!isAddShipTo && formData.paymentTerms === "net30") {
 // --- Trade References: 1 y 2 siempre; 3 solo si empezó a llenarse ---
 const tradeErrs: Record<string, string | undefined> = {};
 [1, 2, 3].forEach((idx) => {
@@ -1687,6 +1698,8 @@ try {
 
 
 
+        {formData.requestType !== "addShipTo" && (
+        <>
         <div className="md:col-span-2 mt-8">
           <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
         </div>
@@ -2097,6 +2110,8 @@ try {
 
            
           </>
+        )}
+        </>
         )}
 
         <div className="md:col-span-2 mt-8">
