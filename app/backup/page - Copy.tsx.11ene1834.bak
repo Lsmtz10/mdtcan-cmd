@@ -10,24 +10,6 @@ import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
 
 
-const EMAIL_TARGETS = {
-  customerMasterData: [
-    "luis.sergio.martinez@medtronic.com",
-    "ricardo.a.morcillo@medtronic.com",
-  ],
-  channelManagement: ["libia.poveda@medtronic.com"],
-  creditTeam: ["josmy.cahuamari@medtronic.com"],
-  taxesTeam: ["lsmtz10@hotmail.com"],
-} satisfies Record<string, string[]>;
-
-const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
-  "0 - 25,000",
-  "25,001 – 50,000",
-  "0 - 25 000",
-  "25 001 – 50 000",
-]);
-
-
 const getTodayDate = () => {
   const now = new Date();
   // Ajusta por el offset de tu zona horaria y toma solo la parte de fecha local
@@ -43,9 +25,6 @@ export default function Home() {
 
   const [formData, setFormData] = useState<Record<string, string>>({
     requestType: 'newAccount',
-    formEmailTo: EMAIL_TARGETS.customerMasterData.join(", "),
-    formEmailCc: '',
-    textInstruction: '',
 
     legalName: '',
     city: '',
@@ -131,50 +110,6 @@ export default function Home() {
   useEffect(() => {
     setErrors({});
   }, [locale]);
-
-  function computeEmailRouting(fd: Record<string, string>) {
-    let to = [...EMAIL_TARGETS.customerMasterData];
-    let cc: string[] = [];
-    let textInstruction = "";
-    let confirmationVariant: "default" | "resellYes" | "lowPurchase" = "default";
-
-    const isResellYes = fd.resell === "yes";
-    const annual = fd.annualPurchase ?? "";
-    const isLowAnnual = LOW_ANNUAL_PURCHASE_VALUES.has(annual);
-    const isNet30 = fd.paymentTerms === "net30";
-
-    if (isResellYes) {
-      to = [...EMAIL_TARGETS.channelManagement];
-      cc = [...EMAIL_TARGETS.customerMasterData];
-      textInstruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES ";
-      confirmationVariant = "resellYes";
-    } else {
-      if (isLowAnnual) {
-        to = [...EMAIL_TARGETS.customerMasterData];
-        cc = [...EMAIL_TARGETS.channelManagement];
-        textInstruction = "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
-        confirmationVariant = "lowPurchase";
-      } else {
-        to = [...EMAIL_TARGETS.customerMasterData];
-        cc = [];
-        textInstruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
-        confirmationVariant = "default";
-      }
-    }
-
-    if (isNet30) {
-      const toSet = new Set(to);
-      EMAIL_TARGETS.creditTeam.forEach(e => toSet.add(e));
-      to = Array.from(toSet);
-    }
-
-    return {
-      to: to.join(", "),
-      cc: Array.from(new Set(cc)).join(", "),
-      textInstruction,
-      confirmationVariant,
-    };
-  }
 
   const formatMessage = (template: string, replacements: Record<string, string | number>) =>
     Object.entries(replacements).reduce(
@@ -883,18 +818,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     fd["requestType"] === "addShipTo"
       ? fieldLabels.requestType.options.addShipTo
       : fieldLabels.requestType.options.newAccount;
-  const routingLabels = {
-    to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
-    cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
-  };
-  const instructionLabel = locale === "fr" ? "Instruction" : "Instruction";
-  const primaryKey = fd["primarySegment"] as keyof typeof messages.options.segmentation.secondaryByPrimary;
-  const secondaryOptions = messages.options.segmentation.secondaryByPrimary[primaryKey] ?? [];
-  const primaryLabel =
-    messages.options.segmentation.primary.find(p => p.value === fd["primarySegment"])?.label ??
-    fd["primarySegment"];
-  const secondaryLabel =
-    secondaryOptions.find(s => s.value === fd["secondarySegment"])?.label ?? fd["secondarySegment"];
 
   rows.push(section(emailText.section_requestSummary));
   rows.push(tr(emailText.submittedAt, timestamp));
@@ -904,9 +827,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     tr(fieldLabels.requestType.label, requestTypeLabel),
     tr(fieldLabels.existingAccountInfo.label, fd["existingAccountInfo"]),
     tr(fieldLabels.payerAddress.label, fd["payerAddress"]),
-    tr(routingLabels.to, fd["formEmailTo"]),
-    tr(routingLabels.cc, fd["formEmailCc"]),
-    tr(instructionLabel, fd["textInstruction"]),
   );
 
   rows.push(section(emailText.section_customerInfo));
@@ -937,7 +857,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
                                    : fd["paymentTerms"]),
   );
 
-  if (fd["requestType"] !== "addShipTo") {
+  if (fd["paymentTerms"] === "net30") {
     rows.push(section(emailText.section_companyInformation));
     rows.push(
       tr(fieldLabels.typeOfOrganization.label,          fd["typeOfOrganization"]),
@@ -948,48 +868,38 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       tr(fieldLabels.intendedDistribution.label, fd["intendedDistribution"]),
       tr(fieldLabels.creditAmount.label,       fd["creditAmount"]),
       tr(fieldLabels.products.label, fd["products"]),
+      tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
+      tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
+      tr(fieldLabels.taxable.label,                       fd["taxable"]),
+      tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
+      tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
     );
 
-    if (fd["paymentTerms"] === "net30") {
-      rows.push(
-        tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
-        tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
-        tr(fieldLabels.taxable.label,                       fd["taxable"]),
-        tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
-        tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
-      );
-      rows.push(section(emailText.section_bankReferences));
-      rows.push(
-        tr(fieldLabels.bankName.label,        fd["bankName"]),
-        tr(fieldLabels.bankAddress.label,     fd["bankAddress"]),
-        tr(fieldLabels.accountManager.label,  fd["accountManager"]),
-        tr(fieldLabels.bankPhone.label,       fd["bankPhone"]),
-        tr(fieldLabels.bankFax.label,         fd["bankFax"]),
-        tr(fieldLabels.bankEmail.label,       fd["bankEmail"]),
-        tr(fieldLabels.bankAccountNumber.label,   fd["bankAccountNumber"]),
-      );
+    rows.push(section(emailText.section_bankReferences));
+    rows.push(
+      tr(fieldLabels.bankName.label,        fd["bankName"]),
+      tr(fieldLabels.bankAddress.label,     fd["bankAddress"]),
+      tr(fieldLabels.accountManager.label,  fd["accountManager"]),
+      tr(fieldLabels.bankPhone.label,       fd["bankPhone"]),
+      tr(fieldLabels.bankFax.label,         fd["bankFax"]),
+      tr(fieldLabels.bankEmail.label,       fd["bankEmail"]),
+      tr(fieldLabels.bankAccountNumber.label,   fd["bankAccountNumber"]),
+    );
 
-      rows.push(section(emailText.section_tradeReferences));
-      for (const i of [1, 2, 3] as const) {
-        if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
-        rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">${esc(formatMessage(fieldLabels.trade.groupTitle, { idx: i }))}</td></tr>`);
-        rows.push(
-          tr(fieldLabels.trade.company.label,    fd[`tradeCompany${i}`]),
-          tr(fieldLabels.trade.account.label,     fd[`tradeAccount${i}`]),
-          tr(fieldLabels.trade.address.label,         fd[`tradeAddress${i}`]),
-          tr(fieldLabels.trade.tel.label,       fd[`tradeTel${i}`]),
-          tr(fieldLabels.trade.contact.label,  fd[`tradeContact${i}`]),
-          tr(fieldLabels.trade.email.label,           fd[`tradeEmail${i}`]),
-        );
-      }
+    rows.push(section(emailText.section_tradeReferences));
+    for (const i of [1, 2, 3] as const) {
+      if (i === 3 && !tradeGroupHasAnyLocal(fd, 3)) continue;
+      rows.push(`<tr><td colspan="2" style="padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;background:#fafafa">${esc(formatMessage(fieldLabels.trade.groupTitle, { idx: i }))}</td></tr>`);
+      rows.push(
+        tr(fieldLabels.trade.company.label,    fd[`tradeCompany${i}`]),
+        tr(fieldLabels.trade.account.label,     fd[`tradeAccount${i}`]),
+        tr(fieldLabels.trade.address.label,         fd[`tradeAddress${i}`]),
+        tr(fieldLabels.trade.tel.label,       fd[`tradeTel${i}`]),
+        tr(fieldLabels.trade.contact.label,  fd[`tradeContact${i}`]),
+        tr(fieldLabels.trade.email.label,           fd[`tradeEmail${i}`]),
+      );
     }
   }
-
-  rows.push(section(messages.sections.customerSegmentation));
-  rows.push(
-    tr(fieldLabels.primarySegment.label, primaryLabel),
-    tr(fieldLabels.secondarySegment.label, secondaryLabel),
-  );
 
   rows.push(section(messages.sections.finalInformation));
   rows.push(
@@ -1008,9 +918,14 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
 }
 
 
+
+
+
+
+
+
 const handleSubmit = async () => {
   const timestamp = new Date().toISOString();
-  const isAddShipTo = formData.requestType === "addShipTo";
 
   const msg = validateLegalName(formData.legalName);
   if (msg) {
@@ -1055,36 +970,28 @@ const handleSubmit = async () => {
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
   const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
   const payMsg = formData.requestType === "newAccount" ? validatePaymentTerms(formData.paymentTerms) : null;
-  const existingAccountMsg = isAddShipTo
+  const existingAccountMsg = formData.requestType === "addShipTo"
     ? validateRequired(formData.existingAccountInfo, true, messages.fields.existingAccountInfo.label)
     : null;
-  const payerAddressMsg = isAddShipTo
+  const payerAddressMsg = formData.requestType === "addShipTo"
     ? validateRequired(formData.payerAddress, true, messages.fields.payerAddress.label)
     : null;
-  const resellMsg = !isAddShipTo ? validateResell(formData.resell) : null;
-  const distributionMsg = !isAddShipTo
-    ? validateIntendedDistribution(intendedDistribution, formData.resell)
-    : null;
-  const annualPurchaseMsg = !isAddShipTo ? validateAnnualPurchase(formData.annualPurchase) : null;
-  const typeOrgMsg = !isAddShipTo
-    ? validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label)
-    : null;
-  const typeBusinessMsg = !isAddShipTo
-    ? validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label)
-    : null;
-  const productsMsg = !isAddShipTo
-    ? validateRequired(formData.products, true, messages.fields.products.label)
-    : null;
-  const creditAmountMsg = !isAddShipTo && formData.paymentTerms === "net30"
+  const resellMsg = validateResell(formData.resell);
+  const distributionMsg = validateIntendedDistribution(intendedDistribution, formData.resell);
+  const annualPurchaseMsg = validateAnnualPurchase(formData.annualPurchase);
+  const typeOrgMsg = validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label);
+  const typeBusinessMsg = validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label);
+  const productsMsg = validateRequired(formData.products, true, messages.fields.products.label);
+  const creditAmountMsg = formData.paymentTerms === "net30"
     ? validateRequired(formData.creditAmount, true, messages.fields.creditAmount.label)
     : null;
-  const taxableMsg = !isAddShipTo && formData.paymentTerms === "net30"
+  const taxableMsg = formData.paymentTerms === "net30"
     ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
     : null;
   const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
-if (!isAddShipTo && formData.paymentTerms === "net30") {
+if (formData.paymentTerms === "net30") {
   const bankNameMsg = validateRequired(formData.bankName, true, messages.fields.bankName.label);
   const acctMgrMsg  = validateRequired(formData.accountManager, true, messages.fields.accountManager.label);
   const bankPhoneMsg = validatePhoneCA(formData.bankPhone, true, messages.fields.bankPhone.label);
@@ -1141,7 +1048,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
 
 
 // --- Trade References: validar SOLO si Net 30 ---
-if (!isAddShipTo && formData.paymentTerms === "net30") {
+if (formData.paymentTerms === "net30") {
 // --- Trade References: 1 y 2 siempre; 3 solo si empezó a llenarse ---
 const tradeErrs: Record<string, string | undefined> = {};
 [1, 2, 3].forEach((idx) => {
@@ -1164,21 +1071,13 @@ if (Object.keys(tradeErrs).length > 0) {
 
 
 
-const routing = computeEmailRouting(formData);
-const finalForm = {
-  ...formData,
-  formEmailTo: routing.to,
-  formEmailCc: routing.cc,
-  textInstruction: routing.textInstruction,
-};
-
 // Fallback en texto (manténlo por compatibilidad con tu template actual)
-const formattedData = Object.entries(finalForm)
+const formattedData = Object.entries(formData)
   .map(([key, value]) => `${key}: ${value}`)
   .join('\n');
 
 // Construye el HTML con etiquetas amigables y secciones condicionales
-const formHtml = buildEmailHtml(finalForm, timestamp);
+const formHtml = buildEmailHtml(formData, timestamp);
 
 try {
   await emailjs.send(
@@ -1188,14 +1087,11 @@ try {
       formHtml,            // <-- usa esto en tu plantilla
       formData: formattedData, // <-- respaldo de texto
       timestamp: timestamp,
-      formEmailTo: finalForm.formEmailTo,
-      formEmailCc: finalForm.formEmailCc,
-      textInstruction: finalForm.textInstruction,
     },
     'BhNrfAyGnu7vx_rYL'    // Public Key
   );
 
-  router.push(`/confirmation?variant=${routing.confirmationVariant}&locale=${locale}`);
+  router.push('/confirmation');
 
   
     
@@ -1698,8 +1594,6 @@ try {
 
 
 
-        {formData.requestType !== "addShipTo" && (
-        <>
         <div className="md:col-span-2 mt-8">
           <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.companyInformation}</h2>
         </div>
@@ -2110,8 +2004,6 @@ try {
 
            
           </>
-        )}
-        </>
         )}
 
         <div className="md:col-span-2 mt-8">
