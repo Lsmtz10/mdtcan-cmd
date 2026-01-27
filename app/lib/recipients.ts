@@ -1,4 +1,8 @@
-import { EMAIL_TARGETS, LOW_ANNUAL_PURCHASE_VALUES } from "@/app/lib/emailTargets";
+import {
+  EMAIL_TARGETS,
+  LOW_ANNUAL_PURCHASE_VALUES,
+  RESEND_BCC,
+} from "@/app/lib/emailTargets";
 
 export type RecipientResult = { to: string[]; cc?: string[]; bcc?: string[] };
 
@@ -46,7 +50,11 @@ function finalizeRecipients(to: string[], cc: string[]): RecipientResult {
   const uniqueTo = dedupe(to);
   const toSet = new Set(uniqueTo);
   const uniqueCc = dedupe(cc).filter((email) => !toSet.has(email));
-  return { to: uniqueTo, cc: uniqueCc };
+  const ccSet = new Set(uniqueCc);
+  const uniqueBcc = dedupe(RESEND_BCC).filter(
+    (email) => !toSet.has(email) && !ccSet.has(email)
+  );
+  return { to: uniqueTo, cc: uniqueCc, bcc: uniqueBcc };
 }
 
 export function resolveRecipients(formData: FormDataValues): RecipientResult {

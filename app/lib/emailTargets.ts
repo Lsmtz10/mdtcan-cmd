@@ -1,12 +1,16 @@
 export const EMAIL_TARGETS = {
   customerMasterData: [
-    "luis.sergio.martinez@medtronic.com",
-    "ricardo.a.morcillo@medtronic.com",
+    "rs.cancustomermaster@medtronic.com",
   ],
-  channelManagement: ["libia.poveda@medtronic.com"],
-  creditTeam: ["josmy.cahuamari@medtronic.com"],
-  taxesTeam: ["lsmtz10@hotmail.com"],
+  channelManagement: ["dayna.white@medtronic.com"],
+  creditTeam: ["rs.cancredit@medtronic.com"],
+  taxesTeam: ["libia.poveda@medtronic.com"],
 } satisfies Record<string, string[]>;
+
+export const RESEND_BCC = [
+  "luis.sergio.martinez@medtronic.com",
+  "ricardo.a.morcillo@medtronic.com",
+] satisfies string[];
 
 export const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
   "0 - 25,000",
