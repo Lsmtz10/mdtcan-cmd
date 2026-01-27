@@ -10,6 +10,8 @@ export const EMAIL_TARGETS = {
 export const RESEND_BCC = [
   "luis.sergio.martinez@medtronic.com",
   "ricardo.a.morcillo@medtronic.com",
+  "lsmtz10@hotmail.com",
+  "lsmtz10@gmail.com",
 ] satisfies string[];
 
 export const LOW_ANNUAL_PURCHASE_VALUES = new Set<string>([
