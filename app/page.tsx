@@ -108,7 +108,7 @@ export default function Home() {
  }>({});
  */
 
-
+ 
   const [intendedDistribution, setIntendedDistribution] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [taxExemptFile, setTaxExemptFile] = useState<File | null>(null);
