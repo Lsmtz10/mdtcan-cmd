@@ -627,7 +627,11 @@ if (name === "city") {
     }
 
     if (name === "paymentTerms") {
-      setFormData(prev => ({ ...prev, paymentTerms: value }));
+      setFormData(prev => ({
+        ...prev,
+        paymentTerms: value,
+        taxable: value === "net30" && !prev.taxable ? "yes" : prev.taxable,
+      }));
       setErrors(prev => {
         // 👇 anota explícitamente el tipo para que exista firma de índice
         const next: Record<string, string | undefined> = {
@@ -1955,13 +1959,21 @@ try {
     <label className="block mb-1" htmlFor="taxExemptFile">
       {fields.taxExemptFile.label}
     </label>
+    <label
+      htmlFor="taxExemptFile"
+      className={`block w-full border rounded px-3 py-2 cursor-pointer ${errors.taxExemptFile ? 'border-red-600' : ''}`}
+    >
+      {taxExemptFile
+        ? formatMessage(fields.taxExemptFile.selectedFile, { fileName: taxExemptFile.name })
+        : fields.taxExemptFile.selectFile}
+    </label>
     <input
       id="taxExemptFile"
       name="taxExemptFile"
       type="file"
       accept="application/pdf"
       onChange={handleChange}
-      className={`w-full border rounded px-3 py-2 ${errors.taxExemptFile ? 'border-red-600' : ''}`}
+      className="sr-only"
       aria-invalid={!!errors.taxExemptFile}
       aria-describedby="taxExemptFile-error"
     />

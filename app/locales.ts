@@ -67,7 +67,11 @@ export const MESSAGES = {
       taxable: { label: "Taxable" },
       gstTaxExempt: { label: "If GST non-taxable, provide Tax Exempt Certificate #:" },
       pstTaxExempt: { label: "If PST non-taxable, provide Tax Exempt Certificate #:" },
-      taxExemptFile: { label: "Tax Exempt Certificate (PDF, max 3 MB)" },
+      taxExemptFile: {
+        label: "Tax Exempt Certificate (PDF, max 3 MB)",
+        selectFile: "Click here to select file",
+        selectedFile: "Selected file: {fileName}",
+      },
 
       // Bank references
       bankName: { label: "Bank Name" },
@@ -339,7 +343,11 @@ export const MESSAGES = {
       taxable: { label: "Taxable" },
       gstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TPS:" },
       pstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TVQ:" },
-      taxExemptFile: { label: "Certificat d'exemption (PDF, 3 MB max)" },
+      taxExemptFile: {
+        label: "Certificat d'exemption (PDF, 3 MB max)",
+        selectFile: "Cliquez ici pour sélectionner un fichier",
+        selectedFile: "Fichier sélectionné : {fileName}",
+      },
 
       // Bank references
       bankName: { label: "Nom de la banque" },
