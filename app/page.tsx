@@ -118,32 +118,60 @@ export default function Home() {
     setErrors({});
   }, [locale]);
 
+  const TAX_EXEMPT_INSTRUCTION =
+    "Taxes team approval must be in place to set the customer with a Tax exemption code";
+
+  function buildInstructionText(fd: Record<string, string>): string {
+    let instruction = "";
+    const requestType = fd.requestType ?? "";
+    const resellValue = fd.resell ?? fd.resellOrDistribute ?? "";
+    const annual = fd.annualPurchase ?? fd.expectedAnnualPurchase ?? "";
+
+    if (requestType === "addShipTo") {
+      instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS Ship-To";
+    } else if (resellValue === "yes") {
+      instruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES";
+    } else if (LOW_ANNUAL_PURCHASE_VALUES.has(annual)) {
+      instruction =
+        "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
+    } else {
+      instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
+    }
+
+    if (fd.taxable === "no") {
+      instruction = instruction
+        ? `${instruction}\n${TAX_EXEMPT_INSTRUCTION}`
+        : TAX_EXEMPT_INSTRUCTION;
+    }
+
+    return instruction;
+  }
+
   function computeEmailRouting(fd: Record<string, string>) {
     let to = [...EMAIL_TARGETS.customerMasterData];
     let cc: string[] = [];
-    let textInstruction = "";
     let confirmationVariant: "default" | "resellYes" | "lowPurchase" = "default";
 
-    const isResellYes = fd.resell === "yes";
-    const annual = fd.annualPurchase ?? "";
+    const requestType = fd.requestType ?? "";
+    const isAddShipTo = requestType === "addShipTo";
+    const resellValue = fd.resell ?? fd.resellOrDistribute ?? "";
+    const annual = fd.annualPurchase ?? fd.expectedAnnualPurchase ?? "";
+    const isResellYes = resellValue === "yes";
     const isLowAnnual = LOW_ANNUAL_PURCHASE_VALUES.has(annual);
     const isNet30 = fd.paymentTerms === "net30";
 
-    if (isResellYes) {
-      to = [...EMAIL_TARGETS.channelManagement];
-      cc = [...EMAIL_TARGETS.customerMasterData];
-      textInstruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES ";
-      confirmationVariant = "resellYes";
-    } else {
-      if (isLowAnnual) {
+    if (!isAddShipTo) {
+      if (isResellYes) {
+        to = [...EMAIL_TARGETS.channelManagement];
+        cc = [...EMAIL_TARGETS.customerMasterData];
+        confirmationVariant = "resellYes";
+      } else if (isLowAnnual) {
         to = [...EMAIL_TARGETS.customerMasterData];
         cc = [...EMAIL_TARGETS.channelManagement];
-        textInstruction = "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
         confirmationVariant = "lowPurchase";
       } else {
         to = [...EMAIL_TARGETS.customerMasterData];
         cc = [];
-        textInstruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
         confirmationVariant = "default";
       }
     }
@@ -157,7 +185,7 @@ export default function Home() {
     return {
       to: to.join(", "),
       cc: Array.from(new Set(cc)).join(", "),
-      textInstruction,
+      textInstruction: buildInstructionText(fd),
       confirmationVariant,
     };
   }
@@ -919,7 +947,10 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
     cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
   };
-  const instructionLabel = locale === "fr" ? "Instruction" : "Instruction";
+  const instructionText = buildInstructionText(fd);
+  const instructionHtml = instructionText
+    ? `<div style="font-weight:700;font-size:16px;color:#8B0000;margin:0 0 12px 0;">${cell(instructionText)}</div>`
+    : "";
   const primaryKey = fd["primarySegment"] as keyof typeof messages.options.segmentation.secondaryByPrimary;
   const secondaryOptions = messages.options.segmentation.secondaryByPrimary[primaryKey] ?? [];
   const primaryLabel =
@@ -938,7 +969,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     tr(fieldLabels.payerAddress.label, fd["payerAddress"]),
     tr(routingLabels.to, fd["formEmailTo"]),
     tr(routingLabels.cc, fd["formEmailCc"]),
-    tr(instructionLabel, fd["textInstruction"]),
   );
 
   rows.push(section(emailText.section_customerInfo));
@@ -1035,6 +1065,7 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;color:#111827">
     <h2 style="margin:0 0 12px 0">${esc(messages.page.title)}</h2>
+    ${instructionHtml}
     <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
   </div>`;
 }

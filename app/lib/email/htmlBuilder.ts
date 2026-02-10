@@ -1,4 +1,5 @@
 import { MESSAGES, type Locale } from "@/app/locales";
+import { LOW_ANNUAL_PURCHASE_VALUES } from "@/app/lib/emailTargets";
 
 export type FormDataValues = Record<string, string>;
 
@@ -11,6 +12,62 @@ type BuildEmailOptions = {
 };
 
 const TRADE_FIELDS = ["Company", "Account", "Address", "Tel", "Contact", "Email"] as const;
+const TAX_EXEMPT_INSTRUCTION =
+  "Taxes team approval must be in place to set the customer with a Tax exemption code";
+
+function normalizeValue(value: string | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function isAddShipToRequest(value: string | undefined): boolean {
+  const normalized = normalizeValue(value).replace(/\s+/g, " ");
+  return (
+    normalized === "addshipto" ||
+    normalized === "add a ship-to to an existing account"
+  );
+}
+
+function isYes(value: string | undefined): boolean {
+  return normalizeValue(value) === "yes";
+}
+
+function isNo(value: string | undefined): boolean {
+  return normalizeValue(value) === "no";
+}
+
+function isLowAnnualPurchase(value: string | undefined): boolean {
+  if (!value) return false;
+  if (LOW_ANNUAL_PURCHASE_VALUES.has(value)) return true;
+  const normalized = value.toLowerCase().replace(/\s+/g, "");
+  if (normalized.startsWith(">")) return false;
+  if (normalized.startsWith("<=")) return true;
+  return false;
+}
+
+function buildInstructionText(formData: FormDataValues): string {
+  const resellValue = formData.resell ?? formData.resellOrDistribute;
+  const annualValue = formData.annualPurchase ?? formData.expectedAnnualPurchase;
+  let instruction = "";
+
+  if (isAddShipToRequest(formData.requestType)) {
+    instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS Ship-To";
+  } else if (isYes(resellValue)) {
+    instruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES";
+  } else if (isLowAnnualPurchase(annualValue)) {
+    instruction =
+      "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
+  } else {
+    instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
+  }
+
+  if (isNo(formData.taxable)) {
+    instruction = instruction
+      ? `${instruction}\n${TAX_EXEMPT_INSTRUCTION}`
+      : TAX_EXEMPT_INSTRUCTION;
+  }
+
+  return instruction;
+}
 
 function formatMessage(template: string, replacements: Record<string, string | number>): string {
   return Object.entries(replacements).reduce(
@@ -60,6 +117,10 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
   const fieldLabels = messages.fields;
   const submittedAt = options.submittedAt ?? new Date().toISOString();
   const rows: string[] = [];
+  const instructionText = options.instruction ?? buildInstructionText(formData);
+  const instructionHtml = instructionText
+    ? `<div style="font-weight:700;font-size:16px;color:#8B0000;margin:0 0 12px 0;">${cell(instructionText)}</div>`
+    : "";
 
   const requestTypeLabel =
     formData.requestType === "addShipTo"
@@ -70,7 +131,6 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
     to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
     cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
   };
-  const instructionLabel = locale === "fr" ? "Instruction" : "Instruction";
 
   rows.push(section(emailText.section_requestSummary));
   rows.push(tr(emailText.submittedAt, submittedAt));
@@ -87,9 +147,6 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
   }
   if (options.resolvedCc && options.resolvedCc.length) {
     rows.push(tr(routingLabels.cc, options.resolvedCc.join(", ")));
-  }
-  if (options.instruction) {
-    rows.push(tr(instructionLabel, options.instruction));
   }
 
   rows.push(section(emailText.section_customerInfo));
@@ -201,6 +258,7 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;color:#111827">
     <h2 style="margin:0 0 12px 0">${esc(messages.page.title)}</h2>
+    ${instructionHtml}
     <table style="border-collapse:collapse;width:100%">${rows.join("")}</table>
   </div>`;
 }
