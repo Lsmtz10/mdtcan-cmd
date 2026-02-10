@@ -764,6 +764,36 @@ if (name === "city") {
       return;
     }
 
+    if (name === "gstTaxExempt") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const taxableNo = formData.taxable === "no";
+      const pstEmpty = !formData.pstTaxExempt?.trim();
+      const gstRequired = taxableNo && pstEmpty;
+      const pstRequired = taxableNo && !cleaned.trim();
+      setFormData(prev => ({ ...prev, gstTaxExempt: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        gstTaxExempt: validateRequired(cleaned, gstRequired, messages.fields.gstTaxExempt.label) || undefined,
+        pstTaxExempt: validateRequired(formData.pstTaxExempt, pstRequired, messages.fields.pstTaxExempt.label) || undefined,
+      }));
+      return;
+    }
+
+    if (name === "pstTaxExempt") {
+      const cleaned = value.normalize("NFC").trimStart();
+      const taxableNo = formData.taxable === "no";
+      const gstEmpty = !formData.gstTaxExempt?.trim();
+      const pstRequired = taxableNo && gstEmpty;
+      const gstRequired = taxableNo && !cleaned.trim();
+      setFormData(prev => ({ ...prev, pstTaxExempt: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        pstTaxExempt: validateRequired(cleaned, pstRequired, messages.fields.pstTaxExempt.label) || undefined,
+        gstTaxExempt: validateRequired(formData.gstTaxExempt, gstRequired, messages.fields.gstTaxExempt.label) || undefined,
+      }));
+      return;
+    }
+
     if (name === "taxable") {
       const required = formData.paymentTerms === "net30";
       const requiresFile =
@@ -778,6 +808,16 @@ if (name === "city") {
         ...prev,
         taxable: validateRequired(value, required, messages.fields.taxable.label) || undefined,
         taxExemptFile: validateTaxExemptFile(value === "no" ? taxExemptFile : null, requiresFile) || undefined,
+        gstTaxExempt: validateRequired(
+          formData.gstTaxExempt,
+          value === "no" && !formData.pstTaxExempt?.trim(),
+          messages.fields.gstTaxExempt.label
+        ) || undefined,
+        pstTaxExempt: validateRequired(
+          formData.pstTaxExempt,
+          value === "no" && !formData.gstTaxExempt?.trim(),
+          messages.fields.pstTaxExempt.label
+        ) || undefined,
       }));
       return;
     }
@@ -1144,6 +1184,12 @@ const handleSubmit = async () => {
   const taxableMsg = !isAddShipTo && formData.paymentTerms === "net30"
     ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
     : null;
+  const gstTaxExemptMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
+    ? validateRequired(formData.gstTaxExempt, !formData.pstTaxExempt?.trim(), messages.fields.gstTaxExempt.label)
+    : null;
+  const pstTaxExemptMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
+    ? validateRequired(formData.pstTaxExempt, !formData.gstTaxExempt?.trim(), messages.fields.pstTaxExempt.label)
+    : null;
   const requiresTaxExemptFile =
     !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no";
   const taxExemptFileMsg = validateTaxExemptFile(taxExemptFile, requiresTaxExemptFile);
@@ -1178,7 +1224,7 @@ if (!isAddShipTo && formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || gstTaxExemptMsg || pstTaxExemptMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -1196,6 +1242,8 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     products: productsMsg || undefined,
     creditAmount: creditAmountMsg || undefined,
     taxable: taxableMsg || undefined,
+    gstTaxExempt: gstTaxExemptMsg || undefined,
+    pstTaxExempt: pstTaxExemptMsg || undefined,
     taxExemptFile: taxExemptFileMsg || undefined,
     requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
@@ -1968,8 +2016,23 @@ try {
     name="gstTaxExempt"
     value={formData.gstTaxExempt}
     onChange={handleChange}
-    className="w-full border rounded px-3 py-2"
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        gstTaxExempt: validateRequired(
+          formData.gstTaxExempt,
+          formData.taxable === "no" && !formData.pstTaxExempt?.trim(),
+          fields.gstTaxExempt.label
+        ) || undefined,
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.gstTaxExempt ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.gstTaxExempt}
+    aria-describedby="gstTaxExempt-error"
   />
+  {errors.gstTaxExempt && (
+    <p id="gstTaxExempt-error" className="text-red-600 text-sm mt-1">{errors.gstTaxExempt}</p>
+  )}
 </div>
 
 <div className="mt-4">
@@ -1981,8 +2044,23 @@ try {
     name="pstTaxExempt"
     value={formData.pstTaxExempt}
     onChange={handleChange}
-    className="w-full border rounded px-3 py-2"
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        pstTaxExempt: validateRequired(
+          formData.pstTaxExempt,
+          formData.taxable === "no" && !formData.gstTaxExempt?.trim(),
+          fields.pstTaxExempt.label
+        ) || undefined,
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.pstTaxExempt ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.pstTaxExempt}
+    aria-describedby="pstTaxExempt-error"
   />
+  {errors.pstTaxExempt && (
+    <p id="pstTaxExempt-error" className="text-red-600 text-sm mt-1">{errors.pstTaxExempt}</p>
+  )}
 </div>
 
 {formData.taxable === "no" && (
