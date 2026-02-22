@@ -58,8 +58,8 @@ export default function Home() {
     initialOrder: '',
     annualPurchase: '',
     taxable: '',
-    gstTaxExempt: '',
-    pstTaxExempt: '',
+    taxExemptionTypes: '',
+    craBusinessNumber: '',
     bankName: '',
     bankAddress: '',
     accountManager: '',
@@ -110,6 +110,7 @@ export default function Home() {
 
  
   const [intendedDistribution, setIntendedDistribution] = useState<string[]>([]);
+  const [taxExemptionTypes, setTaxExemptionTypes] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [taxExemptFile, setTaxExemptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -338,6 +339,12 @@ function validateIntendedDistribution(selected: string[], resellValue: string): 
   return null;
 }
 
+function validateTaxExemptionTypes(selected: string[], required: boolean): string | null {
+  if (!required) return null;
+  if (!selected.length) return messages.errors.taxExemptionTypesRequired;
+  return null;
+}
+
 function validateAnnualPurchase(value: string): string | null {
   if (!value) return `${messages.fields.annualPurchase.label} ${messages.errors.requiredSuffix}`;
   const validValues = new Set<string>(messages.options.annualPurchase.map(opt => String(opt.value)));
@@ -482,6 +489,24 @@ function handleDistributionCheckbox(value: string, checked: boolean) {
   setErrors(prev => ({ ...prev, intendedDistribution: msg || undefined }));
 }
 
+function handleTaxExemptionTypeCheckbox(value: string, checked: boolean) {
+  const nextSelection = checked
+    ? Array.from(new Set([...taxExemptionTypes, value]))
+    : taxExemptionTypes.filter(item => item !== value);
+
+  const required =
+    formData.paymentTerms === "net30" &&
+    formData.taxable === "no" &&
+    formData.requestType !== "addShipTo";
+
+  setTaxExemptionTypes(nextSelection);
+  setFormData(prev => ({ ...prev, taxExemptionTypes: nextSelection.join(", ") }));
+  setErrors(prev => ({
+    ...prev,
+    taxExemptionTypes: validateTaxExemptionTypes(nextSelection, required) || undefined,
+  }));
+}
+
   const secondaryOptions = messages.options.segmentation.secondaryByPrimary as Record<
     string,
     ReadonlyArray<{ value: string; label: string }>
@@ -510,6 +535,8 @@ function handleDistributionCheckbox(value: string, checked: boolean) {
         next.existingAccountInfo = undefined;
         next.payerAddress = undefined;
         next.taxExemptFile = undefined;
+        next.taxExemptionTypes = undefined;
+        next.craBusinessNumber = undefined;
         return next;
       });
       return;
@@ -678,6 +705,8 @@ if (name === "city") {
           delete next.creditAmount;
           delete next.initialOrder;
           delete next.taxable;
+          delete next.taxExemptionTypes;
+          delete next.craBusinessNumber;
           delete next.taxExemptFile;
         }
         return next;
@@ -764,39 +793,23 @@ if (name === "city") {
       return;
     }
 
-    if (name === "gstTaxExempt") {
+    if (name === "craBusinessNumber") {
       const cleaned = value.normalize("NFC").trimStart();
-      const taxableNo = formData.taxable === "no";
-      const pstEmpty = !formData.pstTaxExempt?.trim();
-      const gstRequired = taxableNo && pstEmpty;
-      const pstRequired = taxableNo && !cleaned.trim();
-      setFormData(prev => ({ ...prev, gstTaxExempt: cleaned }));
+      const required =
+        formData.paymentTerms === "net30" &&
+        formData.taxable === "no" &&
+        formData.requestType !== "addShipTo";
+      setFormData(prev => ({ ...prev, craBusinessNumber: cleaned }));
       setErrors(prev => ({
         ...prev,
-        gstTaxExempt: validateRequired(cleaned, gstRequired, messages.fields.gstTaxExempt.label) || undefined,
-        pstTaxExempt: validateRequired(formData.pstTaxExempt, pstRequired, messages.fields.pstTaxExempt.label) || undefined,
-      }));
-      return;
-    }
-
-    if (name === "pstTaxExempt") {
-      const cleaned = value.normalize("NFC").trimStart();
-      const taxableNo = formData.taxable === "no";
-      const gstEmpty = !formData.gstTaxExempt?.trim();
-      const pstRequired = taxableNo && gstEmpty;
-      const gstRequired = taxableNo && !cleaned.trim();
-      setFormData(prev => ({ ...prev, pstTaxExempt: cleaned }));
-      setErrors(prev => ({
-        ...prev,
-        pstTaxExempt: validateRequired(cleaned, pstRequired, messages.fields.pstTaxExempt.label) || undefined,
-        gstTaxExempt: validateRequired(formData.gstTaxExempt, gstRequired, messages.fields.gstTaxExempt.label) || undefined,
+        craBusinessNumber: validateRequired(cleaned, required, messages.fields.craBusinessNumber.label) || undefined,
       }));
       return;
     }
 
     if (name === "taxable") {
       const required = formData.paymentTerms === "net30";
-      const requiresFile =
+      const requiresTaxExemptDetails =
         formData.paymentTerms === "net30" &&
         value === "no" &&
         formData.requestType !== "addShipTo";
@@ -807,16 +820,12 @@ if (name === "city") {
       setErrors(prev => ({
         ...prev,
         taxable: validateRequired(value, required, messages.fields.taxable.label) || undefined,
-        taxExemptFile: validateTaxExemptFile(value === "no" ? taxExemptFile : null, requiresFile) || undefined,
-        gstTaxExempt: validateRequired(
-          formData.gstTaxExempt,
-          value === "no" && !formData.pstTaxExempt?.trim(),
-          messages.fields.gstTaxExempt.label
-        ) || undefined,
-        pstTaxExempt: validateRequired(
-          formData.pstTaxExempt,
-          value === "no" && !formData.gstTaxExempt?.trim(),
-          messages.fields.pstTaxExempt.label
+        taxExemptFile: validateTaxExemptFile(value === "no" ? taxExemptFile : null, requiresTaxExemptDetails) || undefined,
+        taxExemptionTypes: validateTaxExemptionTypes(taxExemptionTypes, requiresTaxExemptDetails) || undefined,
+        craBusinessNumber: validateRequired(
+          formData.craBusinessNumber,
+          requiresTaxExemptDetails,
+          messages.fields.craBusinessNumber.label
         ) || undefined,
       }));
       return;
@@ -1057,9 +1066,13 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
         tr(fieldLabels.initialOrder.label,       fd["initialOrder"]),
         tr(fieldLabels.annualPurchase.label,      fd["annualPurchase"]),
         tr(fieldLabels.taxable.label,                       fd["taxable"]),
-        tr(fieldLabels.gstTaxExempt.label,      fd["gstTaxExempt"]),
-        tr(fieldLabels.pstTaxExempt.label,      fd["pstTaxExempt"]),
       );
+      if (fd["taxable"] === "no") {
+        rows.push(
+          tr(fieldLabels.taxExemptionTypes.label, fd["taxExemptionTypes"]),
+          tr(fieldLabels.craBusinessNumber.label, fd["craBusinessNumber"]),
+        );
+      }
       rows.push(section(emailText.section_bankReferences));
       rows.push(
         tr(fieldLabels.bankName.label,        fd["bankName"]),
@@ -1184,11 +1197,11 @@ const handleSubmit = async () => {
   const taxableMsg = !isAddShipTo && formData.paymentTerms === "net30"
     ? validateRequired(formData.taxable, true, messages.fields.taxable.label)
     : null;
-  const gstTaxExemptMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
-    ? validateRequired(formData.gstTaxExempt, !formData.pstTaxExempt?.trim(), messages.fields.gstTaxExempt.label)
+  const taxExemptionTypesMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
+    ? validateTaxExemptionTypes(taxExemptionTypes, true)
     : null;
-  const pstTaxExemptMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
-    ? validateRequired(formData.pstTaxExempt, !formData.gstTaxExempt?.trim(), messages.fields.pstTaxExempt.label)
+  const craBusinessNumberMsg = !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no"
+    ? validateRequired(formData.craBusinessNumber, true, messages.fields.craBusinessNumber.label)
     : null;
   const requiresTaxExemptFile =
     !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no";
@@ -1224,7 +1237,7 @@ if (!isAddShipTo && formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || gstTaxExemptMsg || pstTaxExemptMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptionTypesMsg || craBusinessNumberMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -1242,8 +1255,8 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     products: productsMsg || undefined,
     creditAmount: creditAmountMsg || undefined,
     taxable: taxableMsg || undefined,
-    gstTaxExempt: gstTaxExemptMsg || undefined,
-    pstTaxExempt: pstTaxExemptMsg || undefined,
+    taxExemptionTypes: taxExemptionTypesMsg || undefined,
+    craBusinessNumber: craBusinessNumberMsg || undefined,
     taxExemptFile: taxExemptFileMsg || undefined,
     requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
@@ -1331,6 +1344,11 @@ try {
   const distributionOptions = [
     { value: CANADA_WIDE_OPTION, label: options.intendedDistribution.canadaWide },
     ...options.provinces,
+  ];
+  const taxExemptionTypeOptions = [
+    { value: "GST", label: options.taxExemptionTypes.gst },
+    { value: "HST", label: options.taxExemptionTypes.hst },
+    { value: "PST", label: options.taxExemptionTypes.pst },
   ];
   const pdfFilename = locale === 'fr'
     ? "Credit Application Form - Fr version - Jan25.pdf"
@@ -1982,115 +2000,134 @@ try {
                   )}
                 </div>
 
-<div>
-  <label className="block mb-1">{fields.taxable.label}</label>
-  <select
-    name="taxable"
-    value={formData.taxable}
-    onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        taxable: validateRequired(formData.taxable, true, fields.taxable.label) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.taxable ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.taxable}
-    aria-describedby="taxable-error"
-  >
-    {options.taxable.map(opt => (
-      <option key={opt.value} value={opt.value}>{opt.label}</option>
-    ))}
-  </select>
-  {errors.taxable && (
-    <p id="taxable-error" className="text-red-600 text-sm mt-1">{errors.taxable}</p>
-  )}
-</div>
+<div className="md:col-span-2 mt-4">
+  <h3 className="text-lg font-semibold text-[#170f5f] mb-2">{sections.taxes}</h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block mb-1">{fields.taxable.label}</label>
+      <select
+        name="taxable"
+        value={formData.taxable}
+        onChange={handleChange}
+        onBlur={() =>
+          setErrors(prev => ({
+            ...prev,
+            taxable: validateRequired(formData.taxable, true, fields.taxable.label) || undefined,
+          }))
+        }
+        className={`w-full border rounded px-3 py-2 ${errors.taxable ? 'border-red-600' : ''}`}
+        aria-invalid={!!errors.taxable}
+        aria-describedby="taxable-error"
+      >
+        {options.taxable.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      {errors.taxable && (
+        <p id="taxable-error" className="text-red-600 text-sm mt-1">{errors.taxable}</p>
+      )}
+    </div>
 
-<div className="mt-4">
-  <label className="block mb-1">
-    {fields.gstTaxExempt.label}
-  </label>
-  <input
-    type="text"
-    name="gstTaxExempt"
-    value={formData.gstTaxExempt}
-    onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        gstTaxExempt: validateRequired(
-          formData.gstTaxExempt,
-          formData.taxable === "no" && !formData.pstTaxExempt?.trim(),
-          fields.gstTaxExempt.label
-        ) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.gstTaxExempt ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.gstTaxExempt}
-    aria-describedby="gstTaxExempt-error"
-  />
-  {errors.gstTaxExempt && (
-    <p id="gstTaxExempt-error" className="text-red-600 text-sm mt-1">{errors.gstTaxExempt}</p>
-  )}
-</div>
+    {formData.taxable === "no" && (
+      <>
+        <fieldset
+          className={`md:col-span-2 border rounded px-3 py-2 ${errors.taxExemptionTypes ? 'border-red-600' : ''}`}
+          aria-invalid={!!errors.taxExemptionTypes}
+          aria-describedby="taxExemptionTypes-error"
+        >
+          <legend className="px-1 text-sm font-medium">{fields.taxExemptionTypes.label}</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+            {taxExemptionTypeOptions.map(opt => {
+              const checked = taxExemptionTypes.includes(opt.value);
+              return (
+                <label key={opt.value} className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => handleTaxExemptionTypeCheckbox(opt.value, e.target.checked)}
+                    onBlur={() =>
+                      setErrors(prev => ({
+                        ...prev,
+                        taxExemptionTypes: validateTaxExemptionTypes(
+                          taxExemptionTypes,
+                          formData.paymentTerms === "net30" &&
+                            formData.taxable === "no" &&
+                            formData.requestType !== "addShipTo"
+                        ) || undefined,
+                      }))
+                    }
+                  />
+                  {opt.label}
+                </label>
+              );
+            })}
+          </div>
+          {errors.taxExemptionTypes && (
+            <p id="taxExemptionTypes-error" className="text-red-600 text-sm mt-2">{errors.taxExemptionTypes}</p>
+          )}
+        </fieldset>
 
-<div className="mt-4">
-  <label className="block mb-1">
-    {fields.pstTaxExempt.label}
-  </label>
-  <input
-    type="text"
-    name="pstTaxExempt"
-    value={formData.pstTaxExempt}
-    onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        pstTaxExempt: validateRequired(
-          formData.pstTaxExempt,
-          formData.taxable === "no" && !formData.gstTaxExempt?.trim(),
-          fields.pstTaxExempt.label
-        ) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.pstTaxExempt ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.pstTaxExempt}
-    aria-describedby="pstTaxExempt-error"
-  />
-  {errors.pstTaxExempt && (
-    <p id="pstTaxExempt-error" className="text-red-600 text-sm mt-1">{errors.pstTaxExempt}</p>
-  )}
-</div>
+        <div>
+          <label className="block mb-1" htmlFor="craBusinessNumber">
+            {fields.craBusinessNumber.label}
+          </label>
+          <input
+            id="craBusinessNumber"
+            type="text"
+            name="craBusinessNumber"
+            value={formData.craBusinessNumber}
+            onChange={handleChange}
+            onBlur={() =>
+              setErrors(prev => ({
+                ...prev,
+                craBusinessNumber: validateRequired(
+                  formData.craBusinessNumber,
+                  formData.paymentTerms === "net30" &&
+                    formData.taxable === "no" &&
+                    formData.requestType !== "addShipTo",
+                  fields.craBusinessNumber.label
+                ) || undefined,
+              }))
+            }
+            className={`w-full border rounded px-3 py-2 ${errors.craBusinessNumber ? 'border-red-600' : ''}`}
+            aria-invalid={!!errors.craBusinessNumber}
+            aria-describedby="craBusinessNumber-error"
+          />
+          {errors.craBusinessNumber && (
+            <p id="craBusinessNumber-error" className="text-red-600 text-sm mt-1">{errors.craBusinessNumber}</p>
+          )}
+        </div>
 
-{formData.taxable === "no" && (
-  <div className="mt-4 md:col-span-2">
-    <label className="block mb-1" htmlFor="taxExemptFile">
-      {fields.taxExemptFile.label}
-    </label>
-    <label
-      htmlFor="taxExemptFile"
-      className={`block w-full border rounded px-3 py-2 cursor-pointer ${errors.taxExemptFile ? 'border-red-600' : ''}`}
-    >
-      {taxExemptFile
-        ? formatMessage(fields.taxExemptFile.selectedFile, { fileName: taxExemptFile.name })
-        : fields.taxExemptFile.selectFile}
-    </label>
-    <input
-      id="taxExemptFile"
-      name="taxExemptFile"
-      type="file"
-      accept="application/pdf"
-      onChange={handleChange}
-      className="sr-only"
-      aria-invalid={!!errors.taxExemptFile}
-      aria-describedby="taxExemptFile-error"
-    />
-    {errors.taxExemptFile && (
-      <p id="taxExemptFile-error" className="text-red-600 text-sm mt-1">{errors.taxExemptFile}</p>
+        <div className="md:col-span-2">
+          <label className="block mb-1" htmlFor="taxExemptFile">
+            {fields.taxExemptFile.label}
+          </label>
+          <label
+            htmlFor="taxExemptFile"
+            className={`block w-full border rounded px-3 py-2 cursor-pointer ${errors.taxExemptFile ? 'border-red-600' : ''}`}
+          >
+            {taxExemptFile
+              ? formatMessage(fields.taxExemptFile.selectedFile, { fileName: taxExemptFile.name })
+              : fields.taxExemptFile.selectFile}
+          </label>
+          <input
+            id="taxExemptFile"
+            name="taxExemptFile"
+            type="file"
+            accept="application/pdf"
+            onChange={handleChange}
+            className="sr-only"
+            aria-invalid={!!errors.taxExemptFile}
+            aria-describedby="taxExemptFile-error"
+          />
+          {errors.taxExemptFile && (
+            <p id="taxExemptFile-error" className="text-red-600 text-sm mt-1">{errors.taxExemptFile}</p>
+          )}
+        </div>
+      </>
     )}
   </div>
-)}
+</div>
 
 
 

@@ -15,6 +15,7 @@ export const MESSAGES = {
     sections: {
       paymentTerms: "Payment Terms",
       companyInformation: "Company Information",
+      taxes: "Taxes",
       bankReferences: "Bank References",
       tradeReferences: "Trade References",
       customerSegmentation: "Customer Segmentation",
@@ -65,10 +66,10 @@ export const MESSAGES = {
       initialOrder: { label: "Estimated Initial Order" },
       annualPurchase: { label: "Expected Annual Purchase" },
       taxable: { label: "Taxable" },
-      gstTaxExempt: { label: "If GST non-taxable, provide Tax Exempt Certificate #:" },
-      pstTaxExempt: { label: "If PST non-taxable, provide Tax Exempt Certificate #:" },
+      taxExemptionTypes: { label: "Select applicable tax exemption type(s)" },
+      craBusinessNumber: { label: "CRA Business Number or GST/HST/PST number" },
       taxExemptFile: {
-        label: "Tax Exempt Certificate (PDF, max 3 MB)",
+        label: "Tax Exemption supporting  document (PDF, max 3 MB)",
         selectFile: "Click here to select file",
         selectedFile: "Selected file: {fileName}",
       },
@@ -150,6 +151,11 @@ export const MESSAGES = {
         { value: "yes", label: "Yes" },
         { value: "no", label: "No" },
       ],
+      taxExemptionTypes: {
+        gst: "GST",
+        hst: "HST",
+        pst: "PST",
+      },
 
       // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
       provinces: [
@@ -246,6 +252,7 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
       intendedDistributionRequired: "Select at least one distribution option.",
+      taxExemptionTypesRequired: "Select 1 or more options: GST, HST, PST.",
       taxExemptFileRequired: "Tax exempt certificate PDF is required.",
       taxExemptFileType: "File must be a PDF.",
       taxExemptFileSize: "File must be 3 MB or less.",
@@ -290,6 +297,7 @@ export const MESSAGES = {
 
     sections: {
       paymentTerms: "Termes de paiement",
+      taxes: "Taxes",
       companyInformation: "Informations sur la société",
       bankReferences: "Référence bancaire",
       tradeReferences: "Références commerciales",
@@ -341,8 +349,8 @@ export const MESSAGES = {
       initialOrder: { label: "Estimée de la première commande" },
       annualPurchase: { label: "Estimée d’achats annuels" },
       taxable: { label: "Taxable" },
-      gstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TPS:" },
-      pstTaxExempt: { label: "Le cas échéant, fournir le numéro de certificat d’exemption de TVQ:" },
+      taxExemptionTypes: { label: "Sélectionnez le(s) type(s) de taxe applicable(s)" },
+      craBusinessNumber: { label: "Numéro d'entreprise ARC ou numéro TPS/TVH/TVP" },
       taxExemptFile: {
         label: "Certificat d'exemption (PDF, 3 MB max)",
         selectFile: "Cliquez ici pour sélectionner un fichier",
@@ -426,6 +434,11 @@ export const MESSAGES = {
         { value: "yes", label: "Oui" },
         { value: "no", label: "Non" },
       ],
+      taxExemptionTypes: {
+        gst: "GST",
+        hst: "HST",
+        pst: "PST",
+      },
 
       // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
       // Values kept in English to match existing validateProvince() logic.
@@ -521,6 +534,7 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
       intendedDistributionRequired: "Sélectionnez au moins une option de distribution.",
+      taxExemptionTypesRequired: "Sélectionnez au moins 1 option : GST, HST, PST.",
       taxExemptFileRequired: "Le certificat d'exemption (PDF) est requis.",
       taxExemptFileType: "Le fichier doit etre un PDF.",
       taxExemptFileSize: "Le fichier doit faire 3 MB ou moins.",
@@ -559,6 +573,7 @@ export const NOT_IN_PDF_KEYS = [
   "page.submit",
   "page.select",
   "sections.finalInformation",
+  "sections.taxes",
   "fields.fax.label",
   "fields.apContact.label",
   "fields.apPhone.label",
@@ -568,6 +583,8 @@ export const NOT_IN_PDF_KEYS = [
   "fields.trade.groupTitle",
   "fields.trade.contact.label",
   "fields.trade.email.label",
+  "fields.taxExemptionTypes.label",
+  "fields.craBusinessNumber.label",
   "fields.taxExemptFile.label",
   "fields.primarySegment.label",
   "fields.secondarySegment.label",
@@ -578,5 +595,6 @@ export const NOT_IN_PDF_KEYS = [
   "alerts.*",
   "email.*",
   "options.provinces",
+  "options.taxExemptionTypes",
   "options.segmentation.secondaryByPrimary.*.SurgicalCenter",
 ] as const;

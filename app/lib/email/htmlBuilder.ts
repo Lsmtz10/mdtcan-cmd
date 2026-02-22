@@ -199,10 +199,14 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
       rows.push(
         tr(fieldLabels.initialOrder.label, formData.initialOrder),
         tr(fieldLabels.annualPurchase.label, formData.annualPurchase),
-        tr(fieldLabels.taxable.label, formData.taxable),
-        tr(fieldLabels.gstTaxExempt.label, formData.gstTaxExempt),
-        tr(fieldLabels.pstTaxExempt.label, formData.pstTaxExempt)
+        tr(fieldLabels.taxable.label, formData.taxable)
       );
+      if (formData.taxable === "no") {
+        rows.push(
+          tr(fieldLabels.taxExemptionTypes.label, formData.taxExemptionTypes),
+          tr(fieldLabels.craBusinessNumber.label, formData.craBusinessNumber)
+        );
+      }
       rows.push(section(emailText.section_bankReferences));
       rows.push(
         tr(fieldLabels.bankName.label, formData.bankName),
