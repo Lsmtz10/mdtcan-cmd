@@ -436,10 +436,10 @@ export const MESSAGES = {
         { value: "no", label: "Non" },
       ],
       taxExemptionTypes: {
-        gst: "GST",
-        hst: "HST",
-        pst: "PST",
-        qst: "QST",
+        gst: "TPS (GST)",
+        hst: "TVH (HST)",
+        pst: "TVP (PST)",
+        qst: "TVQ (QST)",
       },
 
       // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
