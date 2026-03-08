@@ -1349,6 +1349,7 @@ try {
     { value: "GST", label: options.taxExemptionTypes.gst },
     { value: "HST", label: options.taxExemptionTypes.hst },
     { value: "PST", label: options.taxExemptionTypes.pst },
+    { value: "QST", label: options.taxExemptionTypes.qst },
   ];
   const pdfFilename = locale === 'fr'
     ? "Credit Application Form - Fr version - Jan25.pdf"
@@ -2036,7 +2037,7 @@ try {
           aria-describedby="taxExemptionTypes-error"
         >
           <legend className="px-1 text-sm font-medium">{fields.taxExemptionTypes.label}</legend>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+          <div className="grid grid-cols-1 gap-2 mt-1">
             {taxExemptionTypeOptions.map(opt => {
               const checked = taxExemptionTypes.includes(opt.value);
               return (

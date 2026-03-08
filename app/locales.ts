@@ -67,7 +67,7 @@ export const MESSAGES = {
       annualPurchase: { label: "Expected Annual Purchase" },
       taxable: { label: "Taxable" },
       taxExemptionTypes: { label: "Select applicable tax exemption type(s)" },
-      craBusinessNumber: { label: "CRA Business Number or GST/HST/PST number" },
+      craBusinessNumber: { label: "CRA Business Number or GST/HST/PST/QST number" },
       taxExemptFile: {
         label: "Tax Exemption supporting  document (PDF, max 3 MB)",
         selectFile: "Click here to select file",
@@ -155,6 +155,7 @@ export const MESSAGES = {
         gst: "GST",
         hst: "HST",
         pst: "PST",
+        qst: "QST",
       },
 
       // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
@@ -252,7 +253,7 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
       intendedDistributionRequired: "Select at least one distribution option.",
-      taxExemptionTypesRequired: "Select 1 or more options: GST, HST, PST.",
+      taxExemptionTypesRequired: "Select 1 or more options: GST, HST, PST, QST.",
       taxExemptFileRequired: "Tax exempt certificate PDF is required.",
       taxExemptFileType: "File must be a PDF.",
       taxExemptFileSize: "File must be 3 MB or less.",
@@ -350,7 +351,7 @@ export const MESSAGES = {
       annualPurchase: { label: "Estimée d’achats annuels" },
       taxable: { label: "Taxable" },
       taxExemptionTypes: { label: "Sélectionnez le(s) type(s) de taxe applicable(s)" },
-      craBusinessNumber: { label: "Numéro d'entreprise ARC ou numéro TPS/TVH/TVP" },
+      craBusinessNumber: { label: "Numéro d'entreprise ARC ou numéro TPS/TVH/TVP/TVQ" },
       taxExemptFile: {
         label: "Certificat d'exemption (PDF, 3 MB max)",
         selectFile: "Cliquez ici pour sélectionner un fichier",
@@ -438,6 +439,7 @@ export const MESSAGES = {
         gst: "GST",
         hst: "HST",
         pst: "PST",
+        qst: "QST",
       },
 
       // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
@@ -534,7 +536,7 @@ export const MESSAGES = {
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
       intendedDistributionRequired: "Sélectionnez au moins une option de distribution.",
-      taxExemptionTypesRequired: "Sélectionnez au moins 1 option : GST, HST, PST.",
+      taxExemptionTypesRequired: "Sélectionnez au moins 1 option : GST, HST, PST, QST.",
       taxExemptFileRequired: "Le certificat d'exemption (PDF) est requis.",
       taxExemptFileType: "Le fichier doit etre un PDF.",
       taxExemptFileSize: "Le fichier doit faire 3 MB ou moins.",
