@@ -10,16 +10,18 @@ const CONFIRM_MESSAGES: Record<LocaleKey, Record<VariantKey, string>> = {
   en: {
     default:
       'We have received your request. If the information is complete and correct, your account will be activated within 48 hours. For questions or follow-up, please contact us at rs.cancustomermaster@medtronic.com.',
-    resellYes: 'Your request will be assessed; our team will contact you.  For questions, please contact us at rs.cancustomermaster@medtronic.com.',
+    resellYes:
+      'Your request will be assessed; our Distributor Channel Management team will contact you.  For questions, please contact us at rs.cancustomermaster@medtronic.com.',
     lowPurchase:
-      'Based on the information provided, your expected annual purchase is below $50,000. To ensure timely service and appropriate support, we kindly ask you to access Medtronic products through our authorized distribution partners. For questions or follow-up, please contact us at rs.cancustomermaster@medtronic.com.',
+      'We have received your request. If the information is complete and correct, your account will be activated within 48 hours. For questions or follow-up, please contact us at rs.cancustomermaster@medtronic.com.',
   },
   fr: {
     default:
       'Nous avons reçu votre demande. Si les informations sont complètes et exactes, votre compte sera activé dans les 48 heures. Pour toute question ou suivi, veuillez nous contacter à rs.cancustomermaster@medtronic.com.',
-    resellYes: 'Votre demande sera évaluée; notre équipe vous contactera.  Pour toute question ou suivi, veuillez nous contacter à rs.cancustomermaster@medtronic.com.',
+    resellYes:
+      'Votre demande sera évaluée; notre équipe de gestion des canaux de distribution vous contactera.  Pour toute question ou suivi, veuillez nous contacter à rs.cancustomermaster@medtronic.com.',
     lowPurchase:
-      'Selon les informations fournies, votre achat annuel estimé est inférieur à 50 000 $. Pour assurer un service rapide et un soutien approprié, nous vous invitons à accéder aux produits Medtronic par l’intermédiaire de nos partenaires de distribution autorisés.   Pour toute question ou suivi, veuillez nous contacter à rs.cancustomermaster@medtronic.com.',
+      'Nous avons reçu votre demande. Si les informations sont complètes et exactes, votre compte sera activé dans les 48 heures. Pour toute question ou suivi, veuillez nous contacter à rs.cancustomermaster@medtronic.com.',
   },
 };
 

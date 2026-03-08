@@ -13,7 +13,7 @@ type BuildEmailOptions = {
 
 const TRADE_FIELDS = ["Company", "Account", "Address", "Tel", "Contact", "Email"] as const;
 const TAX_EXEMPT_INSTRUCTION =
-  "Taxes team approval must be in place to set the customer with a Tax exemption code";
+  ". Taxes team approval must be in place to set the customer with a Tax exemption code.";
 
 function normalizeValue(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -55,9 +55,9 @@ function buildInstructionText(formData: FormDataValues): string {
     instruction = "CUSTOMER CREATION MUST WAIT UNTIL CHANNEL MANAGEMENT APPROVES";
   } else if (isLowAnnualPurchase(annualValue)) {
     instruction =
-      "THIS IS A LOW VOLUME CUSTOMER, SHOULD NOT BE CREATED, CUSTOMER WAS ADVISED TO CONTACT A DISTRIBUTOR";
+      "PROCEED DIRECTLY WITH THE CREATION OF THIS ACCOUNT. ADDITIONALLY, CHANNEL TEAM HAS BEEN INFORMED OF THIS LOW VOLUME CUSTOMER REQUEST ";
   } else {
-    instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS CUSTOMER";
+    instruction = "PROCEED DIRECTLY WITH THE CREATION OF THIS ACCOUNT";
   }
 
   if (isNo(formData.taxable)) {
