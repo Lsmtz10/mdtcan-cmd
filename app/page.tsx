@@ -934,6 +934,9 @@ if (t) {
     </div>
   )
 
+  const withRequiredMark = (label: string, required = false) =>
+    required ? `* ${label}` : label;
+
 
 const router = useRouter();
 
@@ -1431,7 +1434,7 @@ try {
               <p className="text-sm text-gray-700">{fields.requestType.addShipToNote}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block mb-1" htmlFor="existingAccountInfo">{fields.existingAccountInfo.label}</label>
+                  <label className="block mb-1" htmlFor="existingAccountInfo">{withRequiredMark(fields.existingAccountInfo.label, true)}</label>
                   <textarea
                     id="existingAccountInfo"
                     name="existingAccountInfo"
@@ -1457,7 +1460,7 @@ try {
                   )}
                 </div>
                 <div>
-                  <label className="block mb-1" htmlFor="payerAddress">{fields.payerAddress.label}</label>
+                  <label className="block mb-1" htmlFor="payerAddress">{withRequiredMark(fields.payerAddress.label, true)}</label>
                   <textarea
                     id="payerAddress"
                     name="payerAddress"
@@ -1489,7 +1492,7 @@ try {
 
   
         <div>
-  <label className="block mb-1" htmlFor="legalName">{fields.legalName.label}</label>
+  <label className="block mb-1" htmlFor="legalName">{withRequiredMark(fields.legalName.label, true)}</label>
   <input
     id="legalName"
     name="legalName"
@@ -1515,7 +1518,7 @@ try {
 </div>
 
   <div>
-  <label className="block mb-1" htmlFor="city">{fields.city.label}</label>
+  <label className="block mb-1" htmlFor="city">{withRequiredMark(fields.city.label, true)}</label>
   <input
     id="city"
     name="city"
@@ -1542,7 +1545,7 @@ try {
 
 
 <div>
-  <label className="block mb-1" htmlFor="province">{fields.province.label}</label>
+  <label className="block mb-1" htmlFor="province">{withRequiredMark(fields.province.label, true)}</label>
   <select
     id="province"
     name="province"
@@ -1569,7 +1572,7 @@ try {
 </div>
 
 <div>
-  <label className="block mb-1" htmlFor="postalCode">{fields.postalCode.label}</label>
+  <label className="block mb-1" htmlFor="postalCode">{withRequiredMark(fields.postalCode.label, true)}</label>
   <input
     id="postalCode"
     name="postalCode"
@@ -1599,7 +1602,7 @@ try {
 
 {/* Telephone (required) */}
 <div>
-  <label className="block mb-1" htmlFor="telephone">{fields.telephone.label}</label>
+  <label className="block mb-1" htmlFor="telephone">{withRequiredMark(fields.telephone.label, true)}</label>
   <input
     id="telephone"
     name="telephone"
@@ -1655,7 +1658,7 @@ try {
 
 
         <div>
-  <label className="block mb-1" htmlFor="email">{fields.email.label}</label>
+  <label className="block mb-1" htmlFor="email">{withRequiredMark(fields.email.label, true)}</label>
   <input
     id="email"
     name="email"
@@ -1684,7 +1687,7 @@ try {
 
 
 <div>
-  <label className="block mb-1" htmlFor="billTo">{fields.billTo.label}</label>
+  <label className="block mb-1" htmlFor="billTo">{withRequiredMark(fields.billTo.label, true)}</label>
   <textarea
     id="billTo"
     name="billTo"
@@ -1716,7 +1719,7 @@ try {
 
 {/* Accounts Payable Phone (required) */}
 <div>
-  <label className="block mb-1" htmlFor="apPhone">{fields.apPhone.label}</label>
+  <label className="block mb-1" htmlFor="apPhone">{withRequiredMark(fields.apPhone.label, true)}</label>
   <input
     id="apPhone"
     name="apPhone"
@@ -1741,7 +1744,7 @@ try {
 
 
  <div>
-   <label className="block mb-1" htmlFor="apEmail">{fields.apEmail.label}</label>
+   <label className="block mb-1" htmlFor="apEmail">{withRequiredMark(fields.apEmail.label, true)}</label>
    <input
      id="apEmail"
      name="apEmail"
@@ -1769,7 +1772,7 @@ try {
 
 {formData.requestType === 'newAccount' && (
   <div className="md:col-span-2 mt-6">
-    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{sections.paymentTerms}</h2>
+    <h2 className="text-xl font-semibold text-[#170f5f] mb-2">{withRequiredMark(sections.paymentTerms, true)}</h2>
     <div
       role="radiogroup"
       aria-labelledby="payment-terms-label"
@@ -1831,7 +1834,7 @@ try {
 
 
  <div>
-  <label className="block mb-1">{fields.typeOfOrganization.label}</label>
+  <label className="block mb-1">{withRequiredMark(fields.typeOfOrganization.label, true)}</label>
   <select
     name="typeOfOrganization"
     value={formData.typeOfOrganization}
@@ -1857,7 +1860,7 @@ try {
 
             {renderInput(fields.yearsInBusiness.label, 'yearsInBusiness')}
             <div>
-              <label className="block mb-1">{fields.typeOfBusiness.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.typeOfBusiness.label, true)}</label>
               <input
                 type="text"
                 name="typeOfBusiness"
@@ -1879,7 +1882,7 @@ try {
             </div>
             {renderInput(fields.annualSales.label, 'annualSales')}
             <div>
-              <label className="block mb-1">{fields.resell.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.resell.label, true)}</label>
               <select
                 name="resell"
                 value={formData.resell}
@@ -1908,7 +1911,7 @@ try {
                 aria-invalid={!!errors.intendedDistribution}
                 aria-describedby="intendedDistribution-error"
               >
-                <legend className="px-1 text-sm font-medium">{fields.intendedDistribution.label}</legend>
+                <legend className="px-1 text-sm font-medium">{withRequiredMark(fields.intendedDistribution.label, true)}</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                   {distributionOptions.map(opt => {
                     const checked = intendedDistribution.includes(opt.value);
@@ -1932,7 +1935,7 @@ try {
               </fieldset>
             )}
             <div>
-              <label className="block mb-1">{fields.products.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.products.label, true)}</label>
               <textarea
                 name="products"
                 value={formData.products}
@@ -1953,7 +1956,7 @@ try {
               )}
             </div>
             <div>
-              <label className="block mb-1">{fields.annualPurchase.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.annualPurchase.label, true)}</label>
               <select
                 name="annualPurchase"
                 value={formData.annualPurchase}
@@ -1980,7 +1983,7 @@ try {
               <>
                 {renderInput(fields.initialOrder.label, 'initialOrder')}
                 <div>
-                  <label className="block mb-1">{fields.creditAmount.label}</label>
+                  <label className="block mb-1">{withRequiredMark(fields.creditAmount.label, true)}</label>
                   <input
                     type="text"
                     name="creditAmount"
@@ -2005,7 +2008,7 @@ try {
   <h3 className="text-lg font-semibold text-[#170f5f] mb-2">{sections.taxes}</h3>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
-      <label className="block mb-1">{fields.taxable.label}</label>
+      <label className="block mb-1">{withRequiredMark(fields.taxable.label, true)}</label>
       <select
         name="taxable"
         value={formData.taxable}
@@ -2036,7 +2039,7 @@ try {
           aria-invalid={!!errors.taxExemptionTypes}
           aria-describedby="taxExemptionTypes-error"
         >
-          <legend className="px-1 text-sm font-medium">{fields.taxExemptionTypes.label}</legend>
+          <legend className="px-1 text-sm font-medium">{withRequiredMark(fields.taxExemptionTypes.label, true)}</legend>
           <div className="grid grid-cols-1 gap-2 mt-1">
             {taxExemptionTypeOptions.map(opt => {
               const checked = taxExemptionTypes.includes(opt.value);
@@ -2070,7 +2073,7 @@ try {
 
         <div>
           <label className="block mb-1" htmlFor="craBusinessNumber">
-            {fields.craBusinessNumber.label}
+            {withRequiredMark(fields.craBusinessNumber.label, true)}
           </label>
           <input
             id="craBusinessNumber"
@@ -2101,7 +2104,7 @@ try {
 
         <div className="md:col-span-2">
           <label className="block mb-1" htmlFor="taxExemptFile">
-            {fields.taxExemptFile.label}
+            {withRequiredMark(fields.taxExemptFile.label, true)}
           </label>
           <label
             htmlFor="taxExemptFile"
@@ -2138,7 +2141,7 @@ try {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Bank Name (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankName">{fields.bankName.label}</label>
+        <label className="block mb-1" htmlFor="bankName">{withRequiredMark(fields.bankName.label, formData.paymentTerms === "net30")}</label>
         <input
           id="bankName"
           name="bankName"
@@ -2164,7 +2167,7 @@ try {
 
       {/* Account Manager (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="accountManager">{fields.accountManager.label}</label>
+        <label className="block mb-1" htmlFor="accountManager">{withRequiredMark(fields.accountManager.label, formData.paymentTerms === "net30")}</label>
         <input
           id="accountManager"
           name="accountManager"
@@ -2184,7 +2187,7 @@ try {
 
       {/* Bank Phone (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankPhone">{fields.bankPhone.label}</label>
+        <label className="block mb-1" htmlFor="bankPhone">{withRequiredMark(fields.bankPhone.label, formData.paymentTerms === "net30")}</label>
         <input
           id="bankPhone"
           name="bankPhone"
@@ -2212,7 +2215,7 @@ try {
 
       {/* Bank Email (required if Net 30) */}
       <div>
-        <label className="block mb-1" htmlFor="bankEmail">{fields.bankEmail.label}</label>
+        <label className="block mb-1" htmlFor="bankEmail">{withRequiredMark(fields.bankEmail.label, formData.paymentTerms === "net30")}</label>
         <input
           id="bankEmail"
           name="bankEmail"
@@ -2270,10 +2273,11 @@ try {
   const name = `trade${field}${i}` as const;
   const isTel = field === 'Tel';
   const isEmail = field === 'Email';
+  const isRequired = tradeIsRequired(i);
 
   return (
     <div key={field}>
-      <label className="block mb-1" htmlFor={name}>{tradeLabel(field)}</label>
+      <label className="block mb-1" htmlFor={name}>{withRequiredMark(tradeLabel(field), isRequired)}</label>
       <input
         id={name}
         type={isEmail ? 'email' : isTel ? 'tel' : 'text'}
@@ -2367,7 +2371,7 @@ try {
               />
             </div>
             <div>
-              <label className="block mb-1">{fields.requestorEmail.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.requestorEmail.label, true)}</label>
               <input
                 type="email"
                 name="requestorEmail"
