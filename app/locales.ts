@@ -99,7 +99,7 @@ export const MESSAGES = {
       secondarySegment: { label: "Secondary Segment" }, // NOT IN PDF
 
       // Final information
-      salesRepName: { label: "Sales Rep Name" },
+      salesRepName: { label: "Medtronic Sales Rep Name" },
       requestorName: { label: "Requestor Name" }, // NOT IN PDF
       requestorEmail: { label: "Requester Email" }, // NOT IN PDF
       title: { label: "Title" },
@@ -383,7 +383,7 @@ export const MESSAGES = {
       secondarySegment: { label: "Segment secondaire" }, // NOT IN PDF
 
       // Final information
-      salesRepName: { label: "Représentant de vente" },
+      salesRepName: { label: "Nom du représentant des ventes Medtronic" },
       requestorName: { label: "Nom du demandeur" }, // NOT IN PDF
       requestorEmail: { label: "Courriel du demandeur" }, // NOT IN PDF
       title: { label: "Titre" },

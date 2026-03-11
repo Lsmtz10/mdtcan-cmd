@@ -4,11 +4,12 @@ export const EMAIL_TARGETS = {
   ],
   channelManagement: ["dayna.white@medtronic.com"],
   creditTeam: ["rs.cancredit@medtronic.com"],
-  taxesTeam: ["luis.sergio.martinez@medtronic.com"], 
+  taxesTeam: ["zakir.miah@medtronic.com", "daniel.p.marques@medtronic.com"], 
 } satisfies Record<string, string[]>;
 
 export const RESEND_BCC = [
   "ricardo.a.morcillo@medtronic.com",
+  "luis.sergio.martinez@medtronic.com",
   "lsmtz10@gmail.com",
 ] satisfies string[];
 
