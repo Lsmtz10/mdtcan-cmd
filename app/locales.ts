@@ -33,15 +33,15 @@ export const MESSAGES = {
       website: { label: "Website" },
       email: { label: "Email" }, // PDF uses "Email Address"
       billTo: { label: "Bill To Address" },
-      shipTo: { label: "Ship To Address" },
+      shipTo: { label: "Delivery address" },
       requestType: {
         label: "I want to request:",
         options: {
           newAccount: "New account",
-          addShipTo: "Add a ship-to to an existing account",
+          addShipTo: "Add a delivery address to an existing account",
         },
         addShipToNote:
-          "The following information is required to accurately link the new Ship-to to an existing account in our records",
+          "The following information is required to accurately link the new delivery address to an existing account in our records",
       },
       existingAccountInfo: { label: "Existing account number and/or payer name" },
       payerAddress: { label: "Payer address" },
@@ -248,7 +248,7 @@ export const MESSAGES = {
       cityAllowedChars:
         "Only letters, numbers, spaces, hyphens (-), apostrophes (’ or '), and periods (.) are allowed.",
       postalCodeFormat:
-        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXY are valid.",
+        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXYZ are valid.",
       phone10Digits: "{label} must have 10 digits.",
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
@@ -531,7 +531,7 @@ export const MESSAGES = {
       cityAllowedChars:
         "Seules les lettres, les chiffres, les espaces, les traits d’union (-), les apostrophes (’ ou '), et les points (.) sont autorisés.",
       postalCodeFormat:
-        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVXY sont valides.",
+        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVXYZ sont valides.",
       phone10Digits: "{label} doit comporter 10 chiffres.",
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",

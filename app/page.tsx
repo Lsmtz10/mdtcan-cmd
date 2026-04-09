@@ -251,11 +251,9 @@ function validateProvince(value: string): string | null {
 }
 
 
-// Letras permitidas por Canada Post (no D, F, I, O, Q, U)
-//  const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
-
-// Regex oficial con **espacio obligatorio** entre bloques
-const POSTAL_REGEX = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] \d[ABCEGHJKLMNPRSTVXY]\d$/;
+// Letras aceptadas por la app para el codigo postal canadiense.
+const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXYZ";
+const POSTAL_REGEX = new RegExp(`^[${POSTAL_LETTERS}]\\d[${POSTAL_LETTERS}] \\d[${POSTAL_LETTERS}]\\d$`);
 
 function normalizePostalInput(raw: string): string {
   const up = raw.toUpperCase().normalize("NFC");
@@ -662,6 +660,16 @@ if (name === "city") {
       setErrors(prev => ({
         ...prev,
         requestorEmail: validateEmail(cleaned, true, messages.fields.requestorEmail.label) || undefined,
+      }));
+      return;
+    }
+
+    if (name === "requestorName") {
+      const cleaned = value.normalize("NFC").trimStart();
+      setFormData(prev => ({ ...prev, requestorName: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        requestorName: validateRequired(cleaned, true, messages.fields.requestorName.label) || undefined,
       }));
       return;
     }
@@ -1209,6 +1217,7 @@ const handleSubmit = async () => {
   const requiresTaxExemptFile =
     !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no";
   const taxExemptFileMsg = validateTaxExemptFile(taxExemptFile, requiresTaxExemptFile);
+  const requestorNameMsg = validateRequired(formData.requestorName ?? "", true, messages.fields.requestorName.label);
   const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
@@ -1240,7 +1249,7 @@ if (!isAddShipTo && formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptionTypesMsg || craBusinessNumberMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptionTypesMsg || craBusinessNumberMsg || taxExemptFileMsg || requestorNameMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -1261,6 +1270,7 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     taxExemptionTypes: taxExemptionTypesMsg || undefined,
     craBusinessNumber: craBusinessNumberMsg || undefined,
     taxExemptFile: taxExemptFileMsg || undefined,
+    requestorName: requestorNameMsg || undefined,
     requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
   }));
@@ -2361,14 +2371,25 @@ try {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1">{fields.requestorName.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.requestorName.label, true)}</label>
               <input
                 type="text"
                 name="requestorName"
                 value={formData.requestorName}
                 onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
+                onBlur={() =>
+                  setErrors(prev => ({
+                    ...prev,
+                    requestorName: validateRequired(formData.requestorName ?? "", true, fields.requestorName.label) || undefined,
+                  }))
+                }
+                className={`w-full border rounded px-3 py-2 ${errors.requestorName ? 'border-red-600' : ''}`}
+                aria-invalid={!!errors.requestorName}
+                aria-describedby="requestorName-error"
               />
+              {errors.requestorName && (
+                <p id="requestorName-error" className="text-red-600 text-sm mt-1">{errors.requestorName}</p>
+              )}
             </div>
             <div>
               <label className="block mb-1">{withRequiredMark(fields.requestorEmail.label, true)}</label>
