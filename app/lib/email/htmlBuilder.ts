@@ -12,6 +12,33 @@ type BuildEmailOptions = {
 };
 
 const TRADE_FIELDS = ["Company", "Account", "Address", "Tel", "Contact", "Email"] as const;
+const SHIP_TO_MAX = 10;
+const ADDITIONAL_SHIP_TO_INDEXES = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const SHIP_TO_FIELDS = [
+  "legalName",
+  "shipTo",
+  "city",
+  "province",
+  "postalCode",
+  "telephone",
+  "fax",
+  "website",
+  "email",
+] as const;
+
+type ShipToField = typeof SHIP_TO_FIELDS[number];
+
+const SHIP_TO_FIELD_SUFFIX: Record<ShipToField, string> = {
+  legalName: "LegalName",
+  shipTo: "Address",
+  city: "City",
+  province: "Province",
+  postalCode: "PostalCode",
+  telephone: "Telephone",
+  fax: "Fax",
+  website: "Website",
+  email: "Email",
+};
 const TAX_EXEMPT_INSTRUCTION =
   ". Taxes team approval must be in place to set the customer with a Tax exemption code.";
 
@@ -110,6 +137,27 @@ function tradeGroupHasAny(fd: FormDataValues, idx: number): boolean {
   return TRADE_FIELDS.some((field) => (fd[`trade${field}${idx}`] ?? "").trim() !== "");
 }
 
+function shipToFieldName(index: number, field: ShipToField): string {
+  return index === 1 ? field : `shipTo${index}${SHIP_TO_FIELD_SUFFIX[field]}`;
+}
+
+function shipToGroupHasAny(formData: FormDataValues, index: number): boolean {
+  return SHIP_TO_FIELDS.some(field => (formData[shipToFieldName(index, field)] ?? "").trim() !== "");
+}
+
+function shipToCount(formData: FormDataValues): number {
+  const explicit = Number(formData.shipToCount);
+  if (Number.isInteger(explicit) && explicit >= 1) {
+    return Math.min(explicit, SHIP_TO_MAX);
+  }
+
+  let count = 1;
+  for (const index of ADDITIONAL_SHIP_TO_INDEXES) {
+    if (shipToGroupHasAny(formData, index)) count = index;
+  }
+  return count;
+}
+
 export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOptions = {}): string {
   const locale: Locale = options.locale ?? "en";
   const messages = MESSAGES[locale];
@@ -126,6 +174,10 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
     formData.requestType === "addShipTo"
       ? fieldLabels.requestType.options.addShipTo
       : fieldLabels.requestType.options.newAccount;
+  const legalNameLabel =
+    formData.requestType === "addShipTo"
+      ? fieldLabels.legalName.addShipToLabel
+      : fieldLabels.legalName.label;
 
   const routingLabels = {
     to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
@@ -149,38 +201,76 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
     rows.push(tr(routingLabels.cc, options.resolvedCc.join(", ")));
   }
 
-  rows.push(section(emailText.section_customerInfo));
-  rows.push(
-    tr(fieldLabels.legalName.label, formData.legalName),
-    tr(fieldLabels.city.label, formData.city),
-    tr(fieldLabels.province.label, formData.province),
-    tr(fieldLabels.postalCode.label, formData.postalCode),
-    tr(fieldLabels.telephone.label, formData.telephone),
-    tr(fieldLabels.fax.label, formData.fax),
-    tr(fieldLabels.website.label, formData.website),
-    tr(fieldLabels.email.label, formData.email)
-  );
+  if (formData.requestType === "addShipTo") {
+    for (let index = 1; index <= shipToCount(formData); index += 1) {
+      rows.push(section(formatMessage(fieldLabels.additionalShipTo.groupTitle, { idx: index })));
+      rows.push(
+        tr(legalNameLabel, formData[shipToFieldName(index, "legalName")]),
+        tr(fieldLabels.shipTo.label, formData[shipToFieldName(index, "shipTo")]),
+        tr(fieldLabels.city.label, formData[shipToFieldName(index, "city")]),
+        tr(fieldLabels.province.label, formData[shipToFieldName(index, "province")]),
+        tr(fieldLabels.postalCode.label, formData[shipToFieldName(index, "postalCode")]),
+        tr(fieldLabels.telephone.label, formData[shipToFieldName(index, "telephone")]),
+        tr(fieldLabels.fax.label, formData[shipToFieldName(index, "fax")]),
+        tr(fieldLabels.website.label, formData[shipToFieldName(index, "website")]),
+        tr(fieldLabels.email.label, formData[shipToFieldName(index, "email")])
+      );
+    }
+  } else {
+    rows.push(section(emailText.section_customerInfo));
+    rows.push(
+      tr(legalNameLabel, formData.legalName),
+      tr(fieldLabels.city.label, formData.city),
+      tr(fieldLabels.province.label, formData.province),
+      tr(fieldLabels.postalCode.label, formData.postalCode),
+      tr(fieldLabels.telephone.label, formData.telephone),
+      tr(fieldLabels.fax.label, formData.fax),
+      tr(fieldLabels.website.label, formData.website),
+      tr(fieldLabels.email.label, formData.email)
+    );
 
-  rows.push(section(emailText.section_addresses));
-  rows.push(
-    tr(fieldLabels.billTo.label, formData.billTo),
-    tr(fieldLabels.shipTo.label, formData.shipTo)
-  );
+    const deliveryAddressAnswer =
+      formData.deliveryAddressSameAsBilling === "yes"
+        ? fieldLabels.newAccountDelivery.yes
+        : formData.deliveryAddressSameAsBilling === "no"
+          ? fieldLabels.newAccountDelivery.no
+          : formData.deliveryAddressSameAsBilling;
 
-  rows.push(section(emailText.section_accountsPayable));
-  rows.push(
-    tr(fieldLabels.apContact.label, formData.apContact),
-    tr(fieldLabels.apPhone.label, formData.apPhone),
-    tr(fieldLabels.apEmail.label, formData.apEmail),
-    tr(
-      fieldLabels.paymentTerms.label,
-      formData.paymentTerms === "net30"
-        ? emailText.paymentNet30Short
-        : formData.paymentTerms === "creditCard"
-          ? emailText.paymentCreditCardShort
-          : formData.paymentTerms
-    )
-  );
+    rows.push(section(emailText.section_addresses));
+    rows.push(
+      tr(fieldLabels.billTo.label, formData.billTo),
+      tr(fieldLabels.newAccountDelivery.question, deliveryAddressAnswer)
+    );
+    if (formData.deliveryAddressSameAsBilling === "no") {
+      rows.push(tr(fieldLabels.shipTo.label, fieldLabels.newAccountDelivery.noNote));
+    }
+    if (formData.deliveryAddressSameAsBilling === "yes") {
+      rows.push(
+        tr(fieldLabels.shipTo.label, formData.shipTo),
+        tr(fieldLabels.city.label, formData.shipToCity),
+        tr(fieldLabels.province.label, formData.shipToProvince),
+        tr(fieldLabels.postalCode.label, formData.shipToPostalCode),
+        tr(fieldLabels.telephone.label, formData.shipToTelephone),
+        tr(fieldLabels.fax.label, formData.shipToFax),
+        tr(fieldLabels.email.label, formData.shipToEmail)
+      );
+    }
+
+    rows.push(section(emailText.section_accountsPayable));
+    rows.push(
+      tr(fieldLabels.apContact.label, formData.apContact),
+      tr(fieldLabels.apPhone.label, formData.apPhone),
+      tr(fieldLabels.apEmail.label, formData.apEmail),
+      tr(
+        fieldLabels.paymentTerms.label,
+        formData.paymentTerms === "net30"
+          ? emailText.paymentNet30Short
+          : formData.paymentTerms === "creditCard"
+            ? emailText.paymentCreditCardShort
+            : formData.paymentTerms
+      )
+    );
+  }
 
   if (formData.requestType !== "addShipTo") {
     rows.push(section(emailText.section_companyInformation));

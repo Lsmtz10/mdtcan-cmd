@@ -18,13 +18,14 @@ export const MESSAGES = {
       taxes: "Taxes",
       bankReferences: "Bank References",
       tradeReferences: "Trade References",
+      accountsPayableInformation: "Accounts Payable Information",
       customerSegmentation: "Customer Segmentation",
       finalInformation: "Final Information", // NOT IN PDF
     },
 
     fields: {
       // Customer profile
-      legalName: { label: "Legal Name" },
+      legalName: { label: "Legal Name", addShipToLabel: "Delivery Site Name" },
       city: { label: "City" },
       province: { label: "Province" },
       postalCode: { label: "Postal Code" },
@@ -33,7 +34,24 @@ export const MESSAGES = {
       website: { label: "Website" },
       email: { label: "Email" }, // PDF uses "Email Address"
       billTo: { label: "Bill To Address" },
-      shipTo: { label: "Delivery address" },
+      shipTo: {
+        label: "Delivery address",
+        businessAddressNote:
+          "Important: Delivery addresses must be business-related locations. Avoid using residential addresses.",
+      },
+      newAccountDelivery: {
+        question: "Is the delivery address the same as the billing address?",
+        noNote: "The main address will be used as the delivery address for products.",
+        yes: "Yes",
+        no: "No",
+      },
+      additionalShipTo: {
+        groupTitle: "Delivery address {idx}",
+        question: "Do you want to enter an additional delivery address in this form?",
+        maxReached: "You can enter up to 10 delivery addresses in this form.",
+        yes: "Yes",
+        no: "No",
+      },
       requestType: {
         label: "I want to request:",
         options: {
@@ -58,7 +76,7 @@ export const MESSAGES = {
       typeOfOrganization: { label: "Type of Organization" },
       yearsInBusiness: { label: "Years in Business" },
       typeOfBusiness: { label: "Type of Business" },
-      annualSales: { label: "Annual Sales" },
+      annualSales: { label: "Annual Sales (CAD)" },
       resell: { label: "Will the product be resold or distributed?" },
       intendedDistribution: { label: "Intended geographical distribution" },
       creditAmount: { label: "Credit Amount Requested" },
@@ -126,6 +144,15 @@ export const MESSAGES = {
         { value: "Corporation", label: "Corporation" },
         { value: "Partnership", label: "Partnership" },
         { value: "Proprietorship", label: "Proprietorship" },
+      ],
+
+      typeOfBusiness: [
+        { value: "", label: "Select" },
+        { value: "Hospital", label: "Hospital" },
+        { value: "Clinic", label: "Clinic" },
+        { value: "Distributor", label: "Distributor" },
+        { value: "Physician", label: "Physician" },
+        { value: "Other", label: "Other" },
       ],
 
       annualPurchase: [
@@ -302,13 +329,14 @@ export const MESSAGES = {
       companyInformation: "Informations sur la société",
       bankReferences: "Référence bancaire",
       tradeReferences: "Références commerciales",
+      accountsPayableInformation: "Informations sur les comptes payables",
       customerSegmentation: "Segmentation de la clientèle",
       finalInformation: "Renseignements finaux", // NOT IN PDF
     },
 
     fields: {
       // Customer profile
-      legalName: { label: "Nom légal" },
+      legalName: { label: "Nom légal", addShipToLabel: "Nom du site de livraison" },
       city: { label: "Ville" },
       province: { label: "Province" },
       postalCode: { label: "Code postal" },
@@ -317,7 +345,24 @@ export const MESSAGES = {
       website: { label: "Site Web" },
       email: { label: "Adresse courriel" },
       billTo: { label: "Adresse de facturation" },
-      shipTo: { label: "Adresse de livraison" },
+      shipTo: {
+        label: "Adresse de livraison",
+        businessAddressNote:
+          "Important : Les adresses de livraison doivent etre des lieux lies a l'entreprise. Evitez d'utiliser des adresses residentielles.",
+      },
+      newAccountDelivery: {
+        question: "L'adresse de livraison est-elle la même que l'adresse de facturation ?",
+        noNote: "L'adresse principale sera utilisée comme adresse de livraison des produits.",
+        yes: "Oui",
+        no: "Non",
+      },
+      additionalShipTo: {
+        groupTitle: "Adresse de livraison {idx}",
+        question: "Voulez-vous saisir une adresse de livraison supplémentaire dans ce formulaire ?",
+        maxReached: "Vous pouvez saisir jusqu'à 10 adresses de livraison dans ce formulaire.",
+        yes: "Oui",
+        no: "Non",
+      },
       requestType: {
         label: "Je veux demander :",
         options: {
@@ -342,7 +387,7 @@ export const MESSAGES = {
       typeOfOrganization: { label: "Type d’entreprise" },
       yearsInBusiness: { label: "Nombre d’année en affaire" },
       typeOfBusiness: { label: "Genre d’industrie" },
-      annualSales: { label: "Ventes annuelles" },
+      annualSales: { label: "Ventes annuelles (CAD)" },
       resell: { label: "Les produits sont pour vente ou distribution" },
       intendedDistribution: { label: "Répartition géographique prévue" },
       creditAmount: { label: "Marge de crédit désirée" },
@@ -410,6 +455,15 @@ export const MESSAGES = {
         { value: "Corporation", label: "Corporation" },
         { value: "Partnership", label: "Partenariat" },
         { value: "Proprietorship", label: "Propriétaire" },
+      ],
+
+      typeOfBusiness: [
+        { value: "", label: "Sélectionner" },
+        { value: "Hospital", label: "Hôpital" },
+        { value: "Clinic", label: "Clinique" },
+        { value: "Distributor", label: "Distributeur" },
+        { value: "Physician", label: "Médecin" },
+        { value: "Other", label: "Autre" },
       ],
 
       annualPurchase: [
