@@ -333,7 +333,7 @@ function validateProvince(value: string): string | null {
 
 
 // Letras aceptadas por la app para el codigo postal canadiense.
-const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXYZ";
+const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVWXYZ";
 const POSTAL_REGEX = new RegExp(`^[${POSTAL_LETTERS}]\\d[${POSTAL_LETTERS}] \\d[${POSTAL_LETTERS}]\\d$`);
 
 function normalizePostalInput(raw: string): string {

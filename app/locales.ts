@@ -275,7 +275,7 @@ export const MESSAGES = {
       cityAllowedChars:
         "Only letters, numbers, spaces, hyphens (-), apostrophes (’ or '), and periods (.) are allowed.",
       postalCodeFormat:
-        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXYZ are valid.",
+        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVWXYZ are valid.",
       phone10Digits: "{label} must have 10 digits.",
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
@@ -585,7 +585,7 @@ export const MESSAGES = {
       cityAllowedChars:
         "Seules les lettres, les chiffres, les espaces, les traits d’union (-), les apostrophes (’ ou '), et les points (.) sont autorisés.",
       postalCodeFormat:
-        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVXYZ sont valides.",
+        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVWXYZ sont valides.",
       phone10Digits: "{label} doit comporter 10 chiffres.",
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
