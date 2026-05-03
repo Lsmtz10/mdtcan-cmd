@@ -33,7 +33,7 @@ export const MESSAGES = {
       fax: { label: "Fax (optional)" }, // NOT IN PDF (PDF just has "Fax #")
       website: { label: "Website" },
       email: { label: "Email" }, // PDF uses "Email Address"
-      billTo: { label: "Bill To Address" },
+      billTo: { label: "Billing Address" },
       shipTo: {
         label: "Delivery address",
         businessAddressNote:

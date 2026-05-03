@@ -217,18 +217,6 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
       );
     }
   } else {
-    rows.push(section(emailText.section_customerInfo));
-    rows.push(
-      tr(legalNameLabel, formData.legalName),
-      tr(fieldLabels.city.label, formData.city),
-      tr(fieldLabels.province.label, formData.province),
-      tr(fieldLabels.postalCode.label, formData.postalCode),
-      tr(fieldLabels.telephone.label, formData.telephone),
-      tr(fieldLabels.fax.label, formData.fax),
-      tr(fieldLabels.website.label, formData.website),
-      tr(fieldLabels.email.label, formData.email)
-    );
-
     const deliveryAddressAnswer =
       formData.deliveryAddressSameAsBilling === "yes"
         ? fieldLabels.newAccountDelivery.yes
@@ -236,15 +224,25 @@ export function buildEmailHtml(formData: FormDataValues, options: BuildEmailOpti
           ? fieldLabels.newAccountDelivery.no
           : formData.deliveryAddressSameAsBilling;
 
-    rows.push(section(emailText.section_addresses));
+    rows.push(section(emailText.section_customerInfo));
     rows.push(
+      tr(legalNameLabel, formData.legalName),
       tr(fieldLabels.billTo.label, formData.billTo),
+      tr(fieldLabels.city.label, formData.city),
+      tr(fieldLabels.province.label, formData.province),
+      tr(fieldLabels.postalCode.label, formData.postalCode),
+      tr(fieldLabels.telephone.label, formData.telephone),
+      tr(fieldLabels.fax.label, formData.fax),
+      tr(fieldLabels.website.label, formData.website),
+      tr(fieldLabels.email.label, formData.email),
       tr(fieldLabels.newAccountDelivery.question, deliveryAddressAnswer)
     );
-    if (formData.deliveryAddressSameAsBilling === "no") {
+
+    if (formData.deliveryAddressSameAsBilling === "yes") {
       rows.push(tr(fieldLabels.shipTo.label, fieldLabels.newAccountDelivery.noNote));
     }
-    if (formData.deliveryAddressSameAsBilling === "yes") {
+    if (formData.deliveryAddressSameAsBilling === "no") {
+      rows.push(section(fieldLabels.shipTo.label));
       rows.push(
         tr(fieldLabels.shipTo.label, formData.shipTo),
         tr(fieldLabels.city.label, formData.shipToCity),

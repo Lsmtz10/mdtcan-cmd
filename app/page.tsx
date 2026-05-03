@@ -1446,18 +1446,6 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
       );
     }
   } else {
-    rows.push(section(emailText.section_customerInfo));
-    rows.push(
-      tr(legalNameLabel,  fd["legalName"]),
-      tr(fieldLabels.city.label,        fd["city"]),
-      tr(fieldLabels.province.label,    fd["province"]),
-      tr(fieldLabels.postalCode.label, fd["postalCode"]),
-      tr(fieldLabels.telephone.label,   fd["telephone"]),
-      tr(fieldLabels.fax.label,         fd["fax"]),
-      tr(fieldLabels.website.label,     fd["website"]),
-      tr(fieldLabels.email.label,       fd["email"]),
-    );
-
     const deliveryAddressAnswer =
       fd["deliveryAddressSameAsBilling"] === "yes"
         ? fieldLabels.newAccountDelivery.yes
@@ -1465,15 +1453,25 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
           ? fieldLabels.newAccountDelivery.no
           : fd["deliveryAddressSameAsBilling"];
 
-    rows.push(section(emailText.section_addresses));
+    rows.push(section(emailText.section_customerInfo));
     rows.push(
+      tr(legalNameLabel,  fd["legalName"]),
       tr(fieldLabels.billTo.label, fd["billTo"]),
+      tr(fieldLabels.city.label,        fd["city"]),
+      tr(fieldLabels.province.label,    fd["province"]),
+      tr(fieldLabels.postalCode.label, fd["postalCode"]),
+      tr(fieldLabels.telephone.label,   fd["telephone"]),
+      tr(fieldLabels.fax.label,         fd["fax"]),
+      tr(fieldLabels.website.label,     fd["website"]),
+      tr(fieldLabels.email.label,       fd["email"]),
       tr(fieldLabels.newAccountDelivery.question, deliveryAddressAnswer),
     );
+
     if (fd["deliveryAddressSameAsBilling"] === "yes") {
       rows.push(tr(fieldLabels.shipTo.label, fieldLabels.newAccountDelivery.noNote));
     }
     if (fd["deliveryAddressSameAsBilling"] === "no") {
+      rows.push(section(fieldLabels.shipTo.label));
       rows.push(
         tr(fieldLabels.shipTo.label, fd["shipTo"]),
         tr(fieldLabels.city.label, fd["shipToCity"]),
