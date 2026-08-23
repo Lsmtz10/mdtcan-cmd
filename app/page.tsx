@@ -6,6 +6,7 @@ import Image from 'next/image';
 
 import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
+import { CANADIAN_REGION_VALUES } from '@/app/lib/canadianRegions';
 import { EMAIL_TARGETS, LOW_ANNUAL_PURCHASE_VALUES } from '@/app/lib/emailTargets';
 
 
@@ -314,20 +315,14 @@ function validateCity(value: string): string | null {
 }
 
 
-// justo debajo de 'use client' y de tus imports, SIN export
-const PROVINCES_CA = [
-  "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
-  "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
-] as const;
-
 const CANADA_WIDE_OPTION = "Canada wide";
-const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...PROVINCES_CA] as const;
+const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...CANADIAN_REGION_VALUES] as const;
 
-const PROVINCES_SET = new Set<string>(PROVINCES_CA);
+const CANADIAN_REGIONS_SET = new Set<string>(CANADIAN_REGION_VALUES);
 
 function validateProvince(value: string): string | null {
   if (!value) return messages.errors.provinceRequired;
-  if (!PROVINCES_SET.has(value)) return messages.errors.invalidProvince;
+  if (!CANADIAN_REGIONS_SET.has(value)) return messages.errors.invalidProvince;
   return null;
 }
 
@@ -737,7 +732,7 @@ function nextDistributionSelection(value: string, checked: boolean, current: str
     return Array.from(currentSet);
   }
 
-  // Unchecking a province removes it and also drops Canada wide if it was on
+  // Unchecking a province/territory removes it and also drops Canada wide if it was on
   currentSet.delete(value);
   currentSet.delete(CANADA_WIDE_OPTION);
   return Array.from(currentSet);
