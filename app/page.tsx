@@ -6,6 +6,7 @@ import Image from 'next/image';
 
 import { useRouter } from 'next/navigation';
 import { MESSAGES, Locale } from './locales';
+import { CANADIAN_REGION_VALUES } from '@/app/lib/canadianRegions';
 import { EMAIL_TARGETS, LOW_ANNUAL_PURCHASE_VALUES } from '@/app/lib/emailTargets';
 
 
@@ -18,6 +19,72 @@ const getTodayDate = () => {
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   return local.toISOString().split('T')[0]; // YYYY-MM-DD en hora local
 };
+
+const SHIP_TO_MAX = 10;
+const ADDITIONAL_SHIP_TO_INDEXES = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const SHIP_TO_FIELDS = [
+  "legalName",
+  "shipTo",
+  "city",
+  "province",
+  "postalCode",
+  "telephone",
+  "fax",
+  "website",
+  "email",
+] as const;
+
+type ShipToField = typeof SHIP_TO_FIELDS[number];
+
+const SHIP_TO_FIELD_SUFFIX: Record<ShipToField, string> = {
+  legalName: "LegalName",
+  shipTo: "Address",
+  city: "City",
+  province: "Province",
+  postalCode: "PostalCode",
+  telephone: "Telephone",
+  fax: "Fax",
+  website: "Website",
+  email: "Email",
+};
+
+const SHIP_TO_FIELD_BY_SUFFIX: Record<string, ShipToField> = {
+  LegalName: "legalName",
+  Address: "shipTo",
+  City: "city",
+  Province: "province",
+  PostalCode: "postalCode",
+  Telephone: "telephone",
+  Fax: "fax",
+  Website: "website",
+  Email: "email",
+};
+
+const SHIP_TO_FIELD_SUFFIX_PATTERN = Object.keys(SHIP_TO_FIELD_BY_SUFFIX).join("|");
+
+const NEW_ACCOUNT_DELIVERY_FIELDS = [
+  "shipTo",
+  "shipToCity",
+  "shipToProvince",
+  "shipToPostalCode",
+  "shipToTelephone",
+  "shipToFax",
+  "shipToEmail",
+] as const;
+
+type NewAccountDeliveryField = typeof NEW_ACCOUNT_DELIVERY_FIELDS[number];
+
+const NEW_ACCOUNT_DELIVERY_FIELD_TO_SHIP_TO_FIELD: Record<NewAccountDeliveryField, ShipToField> = {
+  shipTo: "shipTo",
+  shipToCity: "city",
+  shipToProvince: "province",
+  shipToPostalCode: "postalCode",
+  shipToTelephone: "telephone",
+  shipToFax: "fax",
+  shipToEmail: "email",
+};
+
+const NEW_ACCOUNT_DELIVERY_FIELD_SET = new Set<string>(NEW_ACCOUNT_DELIVERY_FIELDS);
 
 
 
@@ -40,7 +107,14 @@ export default function Home() {
     website: '',
     email: '',
     billTo: '',
+    deliveryAddressSameAsBilling: '',
     shipTo: '',
+    shipToCity: '',
+    shipToProvince: '',
+    shipToPostalCode: '',
+    shipToTelephone: '',
+    shipToFax: '',
+    shipToEmail: '',
     apContact: '',
     apPhone: '',
     apEmail: '',
@@ -114,6 +188,8 @@ export default function Home() {
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [taxExemptFile, setTaxExemptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shipToCount, setShipToCount] = useState(1);
+  const [focusedDeliveryAddressField, setFocusedDeliveryAddressField] = useState<string | null>(null);
 
   useEffect(() => {
     setErrors({});
@@ -197,6 +273,12 @@ export default function Home() {
       template
     );
 
+  function getLegalNameLabel(requestType = formData.requestType): string {
+    return requestType === "addShipTo"
+      ? messages.fields.legalName.addShipToLabel
+      : messages.fields.legalName.label;
+  }
+
 
 
   const LEGAL_NAME_MAX = 35;
@@ -205,7 +287,7 @@ export default function Home() {
   
   function validateLegalName(value: string): string | null {
     const v = value.trim();
-    if (!v) return messages.errors.legalNameRequired;
+    if (!v) return `${getLegalNameLabel()} ${messages.errors.requiredSuffix}`;
     if (v.length > LEGAL_NAME_MAX) return formatMessage(messages.errors.maxLength, { max: LEGAL_NAME_MAX });
     if (!LEGAL_NAME_ALLOWED.test(v)) return messages.errors.onlyLettersNumbersSpaces;
     return null;
@@ -233,29 +315,21 @@ function validateCity(value: string): string | null {
 }
 
 
-// justo debajo de 'use client' y de tus imports, SIN export
-const PROVINCES_CA = [
-  "Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador",
-  "Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan",
-] as const;
-
 const CANADA_WIDE_OPTION = "Canada wide";
-const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...PROVINCES_CA] as const;
+const DISTRIBUTION_OPTIONS = [CANADA_WIDE_OPTION, ...CANADIAN_REGION_VALUES] as const;
 
-const PROVINCES_SET = new Set<string>(PROVINCES_CA);
+const CANADIAN_REGIONS_SET = new Set<string>(CANADIAN_REGION_VALUES);
 
 function validateProvince(value: string): string | null {
   if (!value) return messages.errors.provinceRequired;
-  if (!PROVINCES_SET.has(value)) return messages.errors.invalidProvince;
+  if (!CANADIAN_REGIONS_SET.has(value)) return messages.errors.invalidProvince;
   return null;
 }
 
 
-// Letras permitidas por Canada Post (no D, F, I, O, Q, U)
-//  const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVXY";
-
-// Regex oficial con **espacio obligatorio** entre bloques
-const POSTAL_REGEX = /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVXY] \d[ABCEGHJKLMNPRSTVXY]\d$/;
+// Letras aceptadas por la app para el codigo postal canadiense.
+const POSTAL_LETTERS = "ABCEGHJKLMNPRSTVWXYZ";
+const POSTAL_REGEX = new RegExp(`^[${POSTAL_LETTERS}]\\d[${POSTAL_LETTERS}] \\d[${POSTAL_LETTERS}]\\d$`);
 
 function normalizePostalInput(raw: string): string {
   const up = raw.toUpperCase().normalize("NFC");
@@ -333,6 +407,15 @@ function validateResell(value: string): string | null {
   return null;
 }
 
+const TYPE_OF_BUSINESS_OPTIONS = ["Hospital", "Clinic", "Distributor", "Physician", "Other"] as const;
+const TYPE_OF_BUSINESS_OPTIONS_SET = new Set<string>(TYPE_OF_BUSINESS_OPTIONS);
+
+function validateTypeOfBusiness(value: string): string | null {
+  if (!value) return `${messages.fields.typeOfBusiness.label} ${messages.errors.requiredSuffix}`;
+  if (!TYPE_OF_BUSINESS_OPTIONS_SET.has(value)) return messages.errors.invalidOption;
+  return null;
+}
+
 function validateIntendedDistribution(selected: string[], resellValue: string): string | null {
   if (resellValue !== "yes") return null;
   if (!selected.length) return messages.errors.intendedDistributionRequired;
@@ -357,6 +440,181 @@ function validateRequired(value: string, required: boolean, label: string): stri
   const v = (value ?? "").trim();
   if (required && !v) return `${label} ${messages.errors.requiredSuffix}`;
   return null;
+}
+
+function getShipToFieldName(index: number, field: ShipToField): string {
+  return index === 1 ? field : `shipTo${index}${SHIP_TO_FIELD_SUFFIX[field]}`;
+}
+
+function parseAdditionalShipToFieldName(name: string): { index: number; field: ShipToField } | null {
+  const match = name.match(new RegExp(`^shipTo(10|[2-9])(${SHIP_TO_FIELD_SUFFIX_PATTERN})$`));
+  if (!match) return null;
+  return {
+    index: Number(match[1]),
+    field: SHIP_TO_FIELD_BY_SUFFIX[match[2]],
+  };
+}
+
+function getShipToFieldLabel(field: ShipToField): string {
+  switch (field) {
+    case "legalName":
+      return getLegalNameLabel("addShipTo");
+    case "shipTo":
+      return messages.fields.shipTo.label;
+    case "city":
+      return messages.fields.city.label;
+    case "province":
+      return messages.fields.province.label;
+    case "postalCode":
+      return messages.fields.postalCode.label;
+    case "telephone":
+      return messages.fields.telephone.label;
+    case "fax":
+      return messages.fields.fax.label;
+    case "website":
+      return messages.fields.website.label;
+    case "email":
+      return messages.fields.email.label;
+    default:
+      return field;
+  }
+}
+
+function normalizeShipToFieldValue(field: ShipToField, value: string): string {
+  switch (field) {
+    case "legalName":
+      return value
+        .normalize("NFC")
+        .replace(/[^\p{L}\p{M}\d ]/gu, "")
+        .slice(0, LEGAL_NAME_MAX);
+    case "city":
+      return value
+        .normalize("NFC")
+        .replace(/[â€“â€”]/g, "-")
+        .replace(/[â€™]/g, "'")
+        .replace(CITY_STRIP, "")
+        .replace(/\s{2,}/g, " ");
+    case "postalCode":
+      return normalizePostalInput(value);
+    case "telephone":
+    case "fax":
+      return normalizePhoneCA(value);
+    case "email":
+      return value.normalize("NFC").replace(/\s/g, "");
+    case "shipTo":
+      return value.normalize("NFC").trimStart();
+    default:
+      return value.normalize("NFC").replace(/\s{2,}/g, " ");
+  }
+}
+
+function validateShipToFieldValue(field: ShipToField, value: string): string | null {
+  const label = getShipToFieldLabel(field);
+  switch (field) {
+    case "legalName":
+      return validateLegalName(value);
+    case "shipTo":
+      return validateRequired(value, true, label);
+    case "city":
+      return validateCity(value);
+    case "province":
+      return validateProvince(value);
+    case "postalCode":
+      return validatePostalCode(value);
+    case "telephone":
+      return validatePhoneCA(value, true, label);
+    case "fax":
+      return validatePhoneCA(value, false, label);
+    case "email":
+      return validateEmail(value, true, label);
+    default:
+      return null;
+  }
+}
+
+function clearAdditionalShipToData(startIndex: number, values: Record<string, string>): Record<string, string> {
+  const next = { ...values };
+  for (let index = startIndex; index <= SHIP_TO_MAX; index += 1) {
+    SHIP_TO_FIELDS.forEach(field => {
+      delete next[getShipToFieldName(index, field)];
+    });
+  }
+  return next;
+}
+
+function clearAdditionalShipToErrors(
+  startIndex: number,
+  values: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  const next = { ...values };
+  for (let index = startIndex; index <= SHIP_TO_MAX; index += 1) {
+    SHIP_TO_FIELDS.forEach(field => {
+      delete next[getShipToFieldName(index, field)];
+    });
+  }
+  return next;
+}
+
+function validateAdditionalShipTos(): Record<string, string | undefined> {
+  const nextErrors: Record<string, string | undefined> = {};
+  for (const index of ADDITIONAL_SHIP_TO_INDEXES) {
+    if (index > shipToCount) break;
+    SHIP_TO_FIELDS.forEach(field => {
+      const name = getShipToFieldName(index, field);
+      const msg = validateShipToFieldValue(field, formData[name] ?? "");
+      if (msg) nextErrors[name] = msg;
+    });
+  }
+  return nextErrors;
+}
+
+function isNewAccountDeliveryField(name: string): name is NewAccountDeliveryField {
+  return NEW_ACCOUNT_DELIVERY_FIELD_SET.has(name);
+}
+
+function normalizeNewAccountDeliveryFieldValue(field: NewAccountDeliveryField, value: string): string {
+  return normalizeShipToFieldValue(NEW_ACCOUNT_DELIVERY_FIELD_TO_SHIP_TO_FIELD[field], value);
+}
+
+function getNewAccountDeliveryFieldLabel(field: NewAccountDeliveryField): string {
+  return getShipToFieldLabel(NEW_ACCOUNT_DELIVERY_FIELD_TO_SHIP_TO_FIELD[field]);
+}
+
+function validateNewAccountDeliveryFieldValue(field: NewAccountDeliveryField, value: string): string | null {
+  if (field === "shipTo") {
+    return validateRequired(value, true, getNewAccountDeliveryFieldLabel(field));
+  }
+  if (field === "shipToFax") {
+    return validatePhoneCA(value, false, getNewAccountDeliveryFieldLabel(field));
+  }
+  return validateShipToFieldValue(NEW_ACCOUNT_DELIVERY_FIELD_TO_SHIP_TO_FIELD[field], value);
+}
+
+function clearNewAccountDeliveryData(values: Record<string, string>): Record<string, string> {
+  const next = { ...values };
+  NEW_ACCOUNT_DELIVERY_FIELDS.forEach(field => {
+    next[field] = "";
+  });
+  return next;
+}
+
+function clearNewAccountDeliveryErrors(
+  values: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  const next = { ...values };
+  NEW_ACCOUNT_DELIVERY_FIELDS.forEach(field => {
+    delete next[field];
+  });
+  return next;
+}
+
+function validateNewAccountDeliveryFields(): Record<string, string | undefined> {
+  const nextErrors: Record<string, string | undefined> = {};
+  NEW_ACCOUNT_DELIVERY_FIELDS.forEach(field => {
+    const msg = validateNewAccountDeliveryFieldValue(field, formData[field] ?? "");
+    if (msg) nextErrors[field] = msg;
+  });
+  return nextErrors;
 }
 
 const TAX_EXEMPT_MAX_BYTES = 3 * 1024 * 1024;
@@ -474,7 +732,7 @@ function nextDistributionSelection(value: string, checked: boolean, current: str
     return Array.from(currentSet);
   }
 
-  // Unchecking a province removes it and also drops Canada wide if it was on
+  // Unchecking a province/territory removes it and also drops Canada wide if it was on
   currentSet.delete(value);
   currentSet.delete(CANADA_WIDE_OPTION);
   return Array.from(currentSet);
@@ -520,10 +778,15 @@ function handleTaxExemptionTypeCheckbox(value: string, checked: boolean) {
 
     if (name === "requestType") {
       const nextType = value;
-      setFormData(prev => ({
+      setShipToCount(1);
+      setFormData(prev => clearAdditionalShipToData(2, {
         ...prev,
         requestType: nextType,
         paymentTerms: nextType === "newAccount" ? prev.paymentTerms : "",
+        billTo: nextType === "addShipTo" ? "" : prev.billTo,
+        apContact: nextType === "addShipTo" ? "" : prev.apContact,
+        apPhone: nextType === "addShipTo" ? "" : prev.apPhone,
+        apEmail: nextType === "addShipTo" ? "" : prev.apEmail,
       }));
       if (nextType === "addShipTo") {
         setTaxExemptFile(null);
@@ -534,11 +797,57 @@ function handleTaxExemptionTypeCheckbox(value: string, checked: boolean) {
         next.requestType = undefined;
         next.existingAccountInfo = undefined;
         next.payerAddress = undefined;
+        next.legalName = undefined;
+        next.billTo = undefined;
+        next.apContact = undefined;
+        next.apPhone = undefined;
+        next.apEmail = undefined;
+        next.deliveryAddressSameAsBilling = undefined;
         next.taxExemptFile = undefined;
         next.taxExemptionTypes = undefined;
         next.craBusinessNumber = undefined;
-        return next;
+        return clearNewAccountDeliveryErrors(clearAdditionalShipToErrors(2, next));
       });
+      return;
+    }
+
+    if (name === "deliveryAddressSameAsBilling") {
+      setFormData(prev => {
+        const next = {
+          ...prev,
+          deliveryAddressSameAsBilling: value,
+        };
+        return value === "yes" ? clearNewAccountDeliveryData(next) : next;
+      });
+      setErrors(prev => {
+        const next = {
+          ...prev,
+          deliveryAddressSameAsBilling: undefined,
+        };
+        return value === "yes" ? clearNewAccountDeliveryErrors(next) : next;
+      });
+      return;
+    }
+
+    const additionalShipToField = parseAdditionalShipToFieldName(name);
+    if (additionalShipToField) {
+      const { field } = additionalShipToField;
+      const cleaned = normalizeShipToFieldValue(field, value);
+      setFormData(prev => ({ ...prev, [name]: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        [name]: validateShipToFieldValue(field, cleaned) || undefined,
+      }));
+      return;
+    }
+
+    if (isNewAccountDeliveryField(name) && formData.requestType === "newAccount") {
+      const cleaned = normalizeNewAccountDeliveryFieldValue(name, value);
+      setFormData(prev => ({ ...prev, [name]: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        [name]: validateNewAccountDeliveryFieldValue(name, cleaned) || undefined,
+      }));
       return;
     }
 
@@ -666,6 +975,16 @@ if (name === "city") {
       return;
     }
 
+    if (name === "requestorName") {
+      const cleaned = value.normalize("NFC").trimStart();
+      setFormData(prev => ({ ...prev, requestorName: cleaned }));
+      setErrors(prev => ({
+        ...prev,
+        requestorName: validateRequired(cleaned, true, messages.fields.requestorName.label) || undefined,
+      }));
+      return;
+    }
+
     if (name === "taxExemptFile") {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0] ?? null;
@@ -763,11 +1082,10 @@ if (name === "city") {
     }
 
     if (name === "typeOfBusiness") {
-      const cleaned = value.normalize("NFC").replace(/\s{2,}/g, " ");
-      setFormData(prev => ({ ...prev, typeOfBusiness: cleaned }));
+      setFormData(prev => ({ ...prev, typeOfBusiness: value }));
       setErrors(prev => ({
         ...prev,
-        typeOfBusiness: validateRequired(cleaned, true, messages.fields.typeOfBusiness.label) || undefined,
+        typeOfBusiness: validateTypeOfBusiness(value) || undefined,
       }));
       return;
     }
@@ -908,31 +1226,94 @@ if (t) {
   };
 
 
+  function handleAdditionalShipToAnswer(index: number, answer: "yes" | "no") {
+    if (answer === "yes") {
+      setShipToCount(prev => Math.min(SHIP_TO_MAX, Math.max(prev, index + 1)));
+      return;
+    }
 
-  const renderInput = (label: string, name: keyof typeof formData, type = 'text', isTextArea = false, placeholder?: string) => (
-    <div>
-      <label className="block mb-1">{label}</label>
-      {isTextArea ? (
-        <textarea
-          name={name}
-          value={formData[name]}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className="w-full border rounded px-3 py-2"
-          rows={2}
-        />
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={formData[name]}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className="w-full border rounded px-3 py-2"
-        />
-      )}
-    </div>
-  )
+    setShipToCount(index);
+    setFormData(prev => clearAdditionalShipToData(index + 1, prev));
+    setErrors(prev => clearAdditionalShipToErrors(index + 1, prev));
+  }
+
+  const deliveryAddressNoteId = (name: string) => `${name}-business-address-note`;
+
+  const renderDeliveryAddressNote = (name: string) =>
+    focusedDeliveryAddressField === name ? (
+      <p id={deliveryAddressNoteId(name)} className="text-sm font-semibold text-gray-700 mt-1">
+        {messages.fields.shipTo.businessAddressNote}
+      </p>
+    ) : null;
+
+  const deliveryAddressDescribedBy = (name: string, errorId?: string) => {
+    const ids = [
+      errorId && errors[name] ? errorId : undefined,
+      focusedDeliveryAddressField === name ? deliveryAddressNoteId(name) : undefined,
+    ].filter(Boolean);
+
+    return ids.length ? ids.join(" ") : undefined;
+  };
+
+
+  const renderInput = (label: string, name: keyof typeof formData, type = 'text', isTextArea = false, placeholder?: string) => {
+    const fieldName = String(name);
+    const isDeliveryAddressField = isTextArea && fieldName === "shipTo";
+    const errorId = `${fieldName}-error`;
+    const commonClass = `w-full border rounded px-3 py-2 ${errors[fieldName] ? 'border-red-600' : ''}`;
+
+    return (
+      <div>
+        <label className="block mb-1" htmlFor={fieldName}>{label}</label>
+        {isTextArea ? (
+          <>
+            <textarea
+              id={fieldName}
+              name={name}
+              value={formData[name]}
+              onChange={handleChange}
+              onFocus={isDeliveryAddressField ? () => setFocusedDeliveryAddressField(fieldName) : undefined}
+              onBlur={
+                isDeliveryAddressField
+                  ? () => {
+                      setFocusedDeliveryAddressField(prev => (prev === fieldName ? null : prev));
+                      setErrors(prev => ({
+                        ...prev,
+                        [fieldName]: validateShipToFieldValue("shipTo", formData.shipTo) || undefined,
+                      }));
+                    }
+                  : undefined
+              }
+              placeholder={placeholder}
+              className={commonClass}
+              rows={2}
+              aria-invalid={!!errors[fieldName]}
+              aria-describedby={
+                isDeliveryAddressField ? deliveryAddressDescribedBy(fieldName, errorId) : undefined
+              }
+            />
+            {isDeliveryAddressField && renderDeliveryAddressNote(fieldName)}
+            {errors[fieldName] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[fieldName]}</p>}
+          </>
+        ) : (
+          <input
+            id={fieldName}
+            type={type}
+            name={name}
+            value={formData[name]}
+            onChange={handleChange}
+            placeholder={placeholder}
+            className={commonClass}
+            aria-invalid={!!errors[fieldName]}
+            aria-describedby={errors[fieldName] ? errorId : undefined}
+          />
+        )}
+        {!isTextArea && errors[fieldName] && (
+          <p id={errorId} className="text-red-600 text-sm mt-1">{errors[fieldName]}</p>
+        )}
+      </div>
+    );
+  }
 
   const withRequiredMark = (label: string, required = false) =>
     required ? `* ${label}` : label;
@@ -987,6 +1368,23 @@ function tradeGroupHasAnyLocal(fd: FormValues, i: number): boolean {
   return fields.some(f => (fd[`trade${f}${i}`] ?? "").trim() !== "");
 }
 
+function shipToGroupHasAnyLocal(fd: FormValues, index: number): boolean {
+  return SHIP_TO_FIELDS.some(field => (fd[getShipToFieldName(index, field)] ?? "").trim() !== "");
+}
+
+function shipToEmailCount(fd: FormValues): number {
+  const explicit = Number(fd.shipToCount);
+  if (Number.isInteger(explicit) && explicit >= 1) {
+    return Math.min(explicit, SHIP_TO_MAX);
+  }
+
+  let count = 1;
+  for (const index of ADDITIONAL_SHIP_TO_INDEXES) {
+    if (shipToGroupHasAnyLocal(fd, index)) count = index;
+  }
+  return count;
+}
+
 function buildEmailHtml(fd: FormValues, timestamp: string): string {
   const rows: string[] = [];
   const emailText = messages.email;
@@ -995,6 +1393,10 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     fd["requestType"] === "addShipTo"
       ? fieldLabels.requestType.options.addShipTo
       : fieldLabels.requestType.options.newAccount;
+  const legalNameLabel =
+    fd["requestType"] === "addShipTo"
+      ? fieldLabels.legalName.addShipToLabel
+      : fieldLabels.legalName.label;
   const routingLabels = {
     to: locale === "fr" ? "Courriel destinataire (To)" : "Email To",
     cc: locale === "fr" ? "Courriel en copie (Cc)" : "Email Cc",
@@ -1023,33 +1425,69 @@ function buildEmailHtml(fd: FormValues, timestamp: string): string {
     tr(routingLabels.cc, fd["formEmailCc"]),
   );
 
-  rows.push(section(emailText.section_customerInfo));
-  rows.push(
-    tr(fieldLabels.legalName.label,  fd["legalName"]),
-    tr(fieldLabels.city.label,        fd["city"]),
-    tr(fieldLabels.province.label,    fd["province"]),
-    tr(fieldLabels.postalCode.label, fd["postalCode"]),
-    tr(fieldLabels.telephone.label,   fd["telephone"]),
-    tr(fieldLabels.fax.label,         fd["fax"]),
-    tr(fieldLabels.website.label,     fd["website"]),
-    tr(fieldLabels.email.label,       fd["email"]),
-  );
+  if (fd["requestType"] === "addShipTo") {
+    for (let index = 1; index <= shipToEmailCount(fd); index += 1) {
+      rows.push(section(formatMessage(fieldLabels.additionalShipTo.groupTitle, { idx: index })));
+      rows.push(
+        tr(legalNameLabel, fd[getShipToFieldName(index, "legalName")]),
+        tr(fieldLabels.shipTo.label, fd[getShipToFieldName(index, "shipTo")]),
+        tr(fieldLabels.city.label, fd[getShipToFieldName(index, "city")]),
+        tr(fieldLabels.province.label, fd[getShipToFieldName(index, "province")]),
+        tr(fieldLabels.postalCode.label, fd[getShipToFieldName(index, "postalCode")]),
+        tr(fieldLabels.telephone.label, fd[getShipToFieldName(index, "telephone")]),
+        tr(fieldLabels.fax.label, fd[getShipToFieldName(index, "fax")]),
+        tr(fieldLabels.website.label, fd[getShipToFieldName(index, "website")]),
+        tr(fieldLabels.email.label, fd[getShipToFieldName(index, "email")]),
+      );
+    }
+  } else {
+    const deliveryAddressAnswer =
+      fd["deliveryAddressSameAsBilling"] === "yes"
+        ? fieldLabels.newAccountDelivery.yes
+        : fd["deliveryAddressSameAsBilling"] === "no"
+          ? fieldLabels.newAccountDelivery.no
+          : fd["deliveryAddressSameAsBilling"];
 
-  rows.push(section(emailText.section_addresses));
-  rows.push(
-    tr(fieldLabels.billTo.label, fd["billTo"]),
-    tr(fieldLabels.shipTo.label, fd["shipTo"]),
-  );
+    rows.push(section(emailText.section_customerInfo));
+    rows.push(
+      tr(legalNameLabel,  fd["legalName"]),
+      tr(fieldLabels.billTo.label, fd["billTo"]),
+      tr(fieldLabels.city.label,        fd["city"]),
+      tr(fieldLabels.province.label,    fd["province"]),
+      tr(fieldLabels.postalCode.label, fd["postalCode"]),
+      tr(fieldLabels.telephone.label,   fd["telephone"]),
+      tr(fieldLabels.fax.label,         fd["fax"]),
+      tr(fieldLabels.website.label,     fd["website"]),
+      tr(fieldLabels.email.label,       fd["email"]),
+      tr(fieldLabels.newAccountDelivery.question, deliveryAddressAnswer),
+    );
 
-  rows.push(section(emailText.section_accountsPayable));
-  rows.push(
-    tr(fieldLabels.apContact.label,               fd["apContact"]),
-    tr(fieldLabels.apPhone.label,   fd["apPhone"]),
-    tr(fieldLabels.apEmail.label,   fd["apEmail"]),
-    tr(fieldLabels.paymentTerms.label,            fd["paymentTerms"] === "net30" ? emailText.paymentNet30Short
-                                   : fd["paymentTerms"] === "creditCard" ? emailText.paymentCreditCardShort
-                                   : fd["paymentTerms"]),
-  );
+    if (fd["deliveryAddressSameAsBilling"] === "yes") {
+      rows.push(tr(fieldLabels.shipTo.label, fieldLabels.newAccountDelivery.noNote));
+    }
+    if (fd["deliveryAddressSameAsBilling"] === "no") {
+      rows.push(section(fieldLabels.shipTo.label));
+      rows.push(
+        tr(fieldLabels.shipTo.label, fd["shipTo"]),
+        tr(fieldLabels.city.label, fd["shipToCity"]),
+        tr(fieldLabels.province.label, fd["shipToProvince"]),
+        tr(fieldLabels.postalCode.label, fd["shipToPostalCode"]),
+        tr(fieldLabels.telephone.label, fd["shipToTelephone"]),
+        tr(fieldLabels.fax.label, fd["shipToFax"]),
+        tr(fieldLabels.email.label, fd["shipToEmail"]),
+      );
+    }
+
+    rows.push(section(emailText.section_accountsPayable));
+    rows.push(
+      tr(fieldLabels.apContact.label,               fd["apContact"]),
+      tr(fieldLabels.apPhone.label,   fd["apPhone"]),
+      tr(fieldLabels.apEmail.label,   fd["apEmail"]),
+      tr(fieldLabels.paymentTerms.label,            fd["paymentTerms"] === "net30" ? emailText.paymentNet30Short
+                                     : fd["paymentTerms"] === "creditCard" ? emailText.paymentCreditCardShort
+                                     : fd["paymentTerms"]),
+    );
+  }
 
   if (fd["requestType"] !== "addShipTo") {
     rows.push(section(emailText.section_companyInformation));
@@ -1139,7 +1577,9 @@ const handleSubmit = async () => {
   }
 
 
-  const billToMsg = validateRequired(formData.billTo ?? "", true, messages.fields.billTo.label);
+  const billToMsg = isAddShipTo
+    ? null
+    : validateRequired(formData.billTo ?? "", true, messages.fields.billTo.label);
   if (billToMsg) {
     setErrors(prev => ({ ...prev, billTo: billToMsg }));
     alert(messages.alerts.fixErrors);
@@ -1170,15 +1610,29 @@ const handleSubmit = async () => {
 
   const emailMsg = validateEmail(formData.email ?? "", true, messages.fields.email.label);
   const telMsg = validatePhoneCA(formData.telephone, true, messages.fields.telephone.label);
-  const apMsg  = validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label);
+  const apMsg = !isAddShipTo
+    ? validatePhoneCA(formData.apPhone, true, messages.fields.apPhone.label)
+    : null;
   const faxMsg = validatePhoneCA(formData.fax ?? "", false, messages.fields.fax.label);
-  const apEmailMsg = validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label);
+  const apEmailMsg = !isAddShipTo
+    ? validateEmail(formData.apEmail ?? "", true, messages.fields.apEmail.label)
+    : null;
   const payMsg = formData.requestType === "newAccount" ? validatePaymentTerms(formData.paymentTerms) : null;
   const existingAccountMsg = isAddShipTo
     ? validateRequired(formData.existingAccountInfo, true, messages.fields.existingAccountInfo.label)
     : null;
   const payerAddressMsg = isAddShipTo
     ? validateRequired(formData.payerAddress, true, messages.fields.payerAddress.label)
+    : null;
+  const shipToMsg = isAddShipTo
+    ? validateShipToFieldValue("shipTo", formData.shipTo ?? "")
+    : null;
+  const deliveryQuestionMsg = !isAddShipTo
+    ? validateRequired(
+        formData.deliveryAddressSameAsBilling ?? "",
+        true,
+        messages.fields.newAccountDelivery.question
+      )
     : null;
   const resellMsg = !isAddShipTo ? validateResell(formData.resell) : null;
   const distributionMsg = !isAddShipTo
@@ -1189,7 +1643,7 @@ const handleSubmit = async () => {
     ? validateRequired(formData.typeOfOrganization, true, messages.fields.typeOfOrganization.label)
     : null;
   const typeBusinessMsg = !isAddShipTo
-    ? validateRequired(formData.typeOfBusiness, true, messages.fields.typeOfBusiness.label)
+    ? validateTypeOfBusiness(formData.typeOfBusiness)
     : null;
   const productsMsg = !isAddShipTo
     ? validateRequired(formData.products, true, messages.fields.products.label)
@@ -1209,6 +1663,7 @@ const handleSubmit = async () => {
   const requiresTaxExemptFile =
     !isAddShipTo && formData.paymentTerms === "net30" && formData.taxable === "no";
   const taxExemptFileMsg = validateTaxExemptFile(taxExemptFile, requiresTaxExemptFile);
+  const requestorNameMsg = validateRequired(formData.requestorName ?? "", true, messages.fields.requestorName.label);
   const requestorEmailMsg = validateEmail(formData.requestorEmail ?? "", true, messages.fields.requestorEmail.label);
 
 // Solo si Net 30: valida Bank References
@@ -1240,7 +1695,7 @@ if (!isAddShipTo && formData.paymentTerms === "net30") {
 }
 
 
-if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptionTypesMsg || craBusinessNumberMsg || taxExemptFileMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg) {
+if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg || distributionMsg || annualPurchaseMsg || typeOrgMsg || typeBusinessMsg || productsMsg || creditAmountMsg || taxableMsg || taxExemptionTypesMsg || craBusinessNumberMsg || taxExemptFileMsg || requestorNameMsg || requestorEmailMsg || existingAccountMsg || payerAddressMsg || shipToMsg || deliveryQuestionMsg) {
   setErrors(prev => ({
     ...prev,
     telephone: telMsg || undefined,
@@ -1250,6 +1705,8 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     paymentTerms: payMsg || undefined,
     existingAccountInfo: existingAccountMsg || undefined,
     payerAddress: payerAddressMsg || undefined,
+    shipTo: shipToMsg || undefined,
+    deliveryAddressSameAsBilling: deliveryQuestionMsg || undefined,
     resell: resellMsg || undefined,
     intendedDistribution: distributionMsg || undefined,
     annualPurchase: annualPurchaseMsg || undefined,
@@ -1261,9 +1718,27 @@ if (telMsg || apMsg || faxMsg || apEmailMsg || payMsg  || emailMsg || resellMsg 
     taxExemptionTypes: taxExemptionTypesMsg || undefined,
     craBusinessNumber: craBusinessNumberMsg || undefined,
     taxExemptFile: taxExemptFileMsg || undefined,
+    requestorName: requestorNameMsg || undefined,
     requestorEmail: requestorEmailMsg || undefined,
     email: emailMsg || undefined,
   }));
+  alert(messages.alerts.fixErrors);
+  return;
+}
+
+const additionalShipToErrors = isAddShipTo ? validateAdditionalShipTos() : {};
+if (Object.keys(additionalShipToErrors).length > 0) {
+  setErrors(prev => ({ ...prev, ...additionalShipToErrors }));
+  alert(messages.alerts.fixErrors);
+  return;
+}
+
+const newAccountDeliveryErrors =
+  !isAddShipTo && formData.deliveryAddressSameAsBilling === "no"
+    ? validateNewAccountDeliveryFields()
+    : {};
+if (Object.keys(newAccountDeliveryErrors).length > 0) {
+  setErrors(prev => ({ ...prev, ...newAccountDeliveryErrors }));
   alert(messages.alerts.fixErrors);
   return;
 }
@@ -1295,12 +1770,15 @@ if (Object.keys(tradeErrs).length > 0) {
 
 
 
-const routing = computeEmailRouting(formData);
+const submissionData = isAddShipTo
+  ? { ...formData, shipToCount: String(shipToCount) }
+  : formData;
+const routing = computeEmailRouting(submissionData);
 
 setIsSubmitting(true);
 try {
   const payload = new FormData();
-  payload.append("formData", JSON.stringify(formData));
+  payload.append("formData", JSON.stringify(submissionData));
   payload.append("locale", locale);
   if (taxExemptFile) {
     payload.append("taxExemptFile", taxExemptFile);
@@ -1358,6 +1836,360 @@ try {
     ? "Credit Application Form - Fr version - Jan25.pdf"
     : "Credit Application Form - En version - Jan25.pdf";
   const pdfUrl = encodeURI(`/${pdfFilename}`);
+
+  const requiredShipToFields = new Set<ShipToField>([
+    "legalName",
+    "shipTo",
+    "city",
+    "province",
+    "postalCode",
+    "telephone",
+    "email",
+  ]);
+
+  const renderAdditionalShipToField = (index: number, field: ShipToField) => {
+    const name = getShipToFieldName(index, field);
+    const label = getShipToFieldLabel(field);
+    const required = requiredShipToFields.has(field);
+    const errorId = `${name}-error`;
+    const commonClass = `w-full border rounded px-3 py-2 ${errors[name] ? 'border-red-600' : ''}`;
+
+    if (field === "province") {
+      return (
+        <div key={name}>
+          <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+          <select
+            id={name}
+            name={name}
+            value={formData[name] ?? ""}
+            onChange={handleChange}
+            onBlur={() =>
+              setErrors(prev => ({
+                ...prev,
+                [name]: validateShipToFieldValue(field, formData[name] ?? "") || undefined,
+              }))
+            }
+            className={commonClass}
+            aria-invalid={!!errors[name]}
+            aria-describedby={errorId}
+          >
+            <option value="">{page.select}</option>
+            {options.provinces.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    if (field === "shipTo") {
+      return (
+        <div key={name}>
+          <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+          <textarea
+            id={name}
+            name={name}
+            rows={2}
+            value={formData[name] ?? ""}
+            onChange={handleChange}
+            onFocus={() => setFocusedDeliveryAddressField(name)}
+            onBlur={() => {
+              setFocusedDeliveryAddressField(prev => (prev === name ? null : prev));
+              setErrors(prev => ({
+                ...prev,
+                [name]: validateShipToFieldValue(field, formData[name] ?? "") || undefined,
+              }));
+            }}
+            className={commonClass}
+            aria-invalid={!!errors[name]}
+            aria-describedby={deliveryAddressDescribedBy(name, errorId)}
+          />
+          {renderDeliveryAddressNote(name)}
+          {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    const inputType =
+      field === "telephone" || field === "fax"
+        ? "tel"
+        : field === "email"
+          ? "email"
+          : "text";
+    const placeholder =
+      field === "telephone" || field === "fax"
+        ? placeholders.phone
+        : field === "email"
+          ? placeholders.email
+          : field === "postalCode"
+            ? placeholders.postalCode
+            : undefined;
+    const inputMode =
+      inputType === "tel"
+        ? "tel"
+        : inputType === "email"
+          ? "email"
+          : field === "postalCode"
+            ? "text"
+            : undefined;
+
+    return (
+      <div key={name}>
+        <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+        <input
+          id={name}
+          name={name}
+          type={inputType}
+          inputMode={inputMode}
+          autoComplete={inputType === "tel" ? "tel" : inputType === "email" ? "email" : undefined}
+          autoCapitalize={field === "postalCode" ? "characters" : undefined}
+          placeholder={placeholder}
+          maxLength={field === "legalName" ? LEGAL_NAME_MAX : field === "postalCode" ? 7 : undefined}
+          pattern={field === "legalName" ? "[\\p{L}\\p{M}\\d ]+" : undefined}
+          value={formData[name] ?? ""}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              [name]: validateShipToFieldValue(field, formData[name] ?? "") || undefined,
+            }))
+          }
+          className={commonClass}
+          aria-invalid={!!errors[name]}
+          aria-describedby={errorId}
+        />
+        {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+      </div>
+    );
+  };
+
+  const renderAdditionalShipToQuestion = (index: number) => {
+    if (index >= SHIP_TO_MAX) {
+      return (
+        <p className="md:col-span-2 text-sm text-gray-700">
+          {fields.additionalShipTo.maxReached}
+        </p>
+      );
+    }
+
+    const questionId = `additionalShipToQuestion-${index}`;
+    const radioName = `additionalShipToQuestion${index}`;
+
+    return (
+      <fieldset className="md:col-span-2 border-t border-gray-200 pt-4">
+        <legend id={questionId} className="font-medium">{fields.additionalShipTo.question}</legend>
+        <div className="flex flex-col sm:flex-row gap-4 mt-2">
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="radio"
+              name={radioName}
+              value="yes"
+              checked={shipToCount > index}
+              onChange={() => handleAdditionalShipToAnswer(index, "yes")}
+            />
+            {fields.additionalShipTo.yes}
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="radio"
+              name={radioName}
+              value="no"
+              checked={shipToCount <= index}
+              onChange={() => handleAdditionalShipToAnswer(index, "no")}
+            />
+            {fields.additionalShipTo.no}
+          </label>
+        </div>
+      </fieldset>
+    );
+  };
+
+  const renderAdditionalShipToSection = (index: number) => (
+    <div key={index} className="md:col-span-2 border-t border-gray-200 pt-5 mt-2">
+      <h2 className="text-lg font-semibold text-[#170f5f] mb-4">
+        {formatMessage(fields.additionalShipTo.groupTitle, { idx: index })}
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {SHIP_TO_FIELDS.map(field => renderAdditionalShipToField(index, field))}
+        {renderAdditionalShipToQuestion(index)}
+      </div>
+    </div>
+  );
+
+  const requiredNewAccountDeliveryFields = new Set<NewAccountDeliveryField>([
+    "shipTo",
+    "shipToCity",
+    "shipToProvince",
+    "shipToPostalCode",
+    "shipToTelephone",
+    "shipToEmail",
+  ]);
+
+  const renderNewAccountDeliveryField = (field: NewAccountDeliveryField) => {
+    const name = field;
+    const label = getNewAccountDeliveryFieldLabel(field);
+    const required = requiredNewAccountDeliveryFields.has(field);
+    const errorId = `${name}-error`;
+    const commonClass = `w-full border rounded px-3 py-2 ${errors[name] ? 'border-red-600' : ''}`;
+
+    if (field === "shipToProvince") {
+      return (
+        <div key={name}>
+          <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+          <select
+            id={name}
+            name={name}
+            value={formData[name] ?? ""}
+            onChange={handleChange}
+            onBlur={() =>
+              setErrors(prev => ({
+                ...prev,
+                [name]: validateNewAccountDeliveryFieldValue(field, formData[name] ?? "") || undefined,
+              }))
+            }
+            className={commonClass}
+            aria-invalid={!!errors[name]}
+            aria-describedby={errorId}
+          >
+            <option value="">{page.select}</option>
+            {options.provinces.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    if (field === "shipTo") {
+      return (
+        <div key={name}>
+          <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+          <textarea
+            id={name}
+            name={name}
+            rows={2}
+            value={formData[name] ?? ""}
+            onChange={handleChange}
+            onFocus={() => setFocusedDeliveryAddressField(name)}
+            onBlur={() => {
+              setFocusedDeliveryAddressField(prev => (prev === name ? null : prev));
+              setErrors(prev => ({
+                ...prev,
+                [name]: validateNewAccountDeliveryFieldValue(field, formData[name] ?? "") || undefined,
+              }));
+            }}
+            className={commonClass}
+            aria-invalid={!!errors[name]}
+            aria-describedby={deliveryAddressDescribedBy(name, errorId)}
+          />
+          {renderDeliveryAddressNote(name)}
+          {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    const inputType =
+      field === "shipToTelephone" || field === "shipToFax"
+        ? "tel"
+        : field === "shipToEmail"
+          ? "email"
+          : "text";
+    const placeholder =
+      field === "shipToTelephone" || field === "shipToFax"
+        ? placeholders.phone
+        : field === "shipToEmail"
+          ? placeholders.email
+          : field === "shipToPostalCode"
+            ? placeholders.postalCode
+            : undefined;
+    const inputMode =
+      inputType === "tel"
+        ? "tel"
+        : inputType === "email"
+          ? "email"
+          : field === "shipToPostalCode"
+            ? "text"
+            : undefined;
+
+    return (
+      <div key={name}>
+        <label className="block mb-1" htmlFor={name}>{withRequiredMark(label, required)}</label>
+        <input
+          id={name}
+          name={name}
+          type={inputType}
+          inputMode={inputMode}
+          autoComplete={inputType === "tel" ? "tel" : inputType === "email" ? "email" : undefined}
+          autoCapitalize={field === "shipToPostalCode" ? "characters" : undefined}
+          placeholder={placeholder}
+          maxLength={field === "shipToPostalCode" ? 7 : undefined}
+          value={formData[name] ?? ""}
+          onChange={handleChange}
+          onBlur={() =>
+            setErrors(prev => ({
+              ...prev,
+              [name]: validateNewAccountDeliveryFieldValue(field, formData[name] ?? "") || undefined,
+            }))
+          }
+          className={commonClass}
+          aria-invalid={!!errors[name]}
+          aria-describedby={errorId}
+        />
+        {errors[name] && <p id={errorId} className="text-red-600 text-sm mt-1">{errors[name]}</p>}
+      </div>
+    );
+  };
+
+  const renderNewAccountDeliveryQuestion = () => (
+    <fieldset
+      className="md:col-span-2 border-t border-gray-200 pt-4"
+      aria-invalid={!!errors.deliveryAddressSameAsBilling}
+      aria-describedby={errors.deliveryAddressSameAsBilling ? "deliveryAddressSameAsBilling-error" : undefined}
+    >
+      <legend className="font-medium">{fields.newAccountDelivery.question}</legend>
+      <div className="flex flex-col sm:flex-row gap-4 mt-2">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="radio"
+            name="deliveryAddressSameAsBilling"
+            value="yes"
+            checked={formData.deliveryAddressSameAsBilling === "yes"}
+            onChange={handleChange}
+          />
+          {fields.newAccountDelivery.yes}
+        </label>
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="radio"
+            name="deliveryAddressSameAsBilling"
+            value="no"
+            checked={formData.deliveryAddressSameAsBilling === "no"}
+            onChange={handleChange}
+          />
+          {fields.newAccountDelivery.no}
+        </label>
+      </div>
+      {errors.deliveryAddressSameAsBilling && (
+        <p id="deliveryAddressSameAsBilling-error" className="text-red-600 text-sm mt-1">
+          {errors.deliveryAddressSameAsBilling}
+        </p>
+      )}
+      {formData.deliveryAddressSameAsBilling === "yes" && (
+        <p className="text-sm font-bold text-gray-700 mt-3">{fields.newAccountDelivery.noNote}</p>
+      )}
+    </fieldset>
+  );
+
+  const renderNewAccountDeliverySection = () => (
+    <div className="md:col-span-2 border-t border-gray-200 pt-5 mt-2">
+      <h2 className="text-lg font-semibold text-[#170f5f] mb-4">{fields.shipTo.label}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {NEW_ACCOUNT_DELIVERY_FIELDS.map(field => renderNewAccountDeliveryField(field))}
+      </div>
+    </div>
+  );
 
   return (
 
@@ -1492,7 +2324,7 @@ try {
 
   
         <div>
-  <label className="block mb-1" htmlFor="legalName">{withRequiredMark(fields.legalName.label, true)}</label>
+  <label className="block mb-1" htmlFor="legalName">{withRequiredMark(getLegalNameLabel(), true)}</label>
   <input
     id="legalName"
     name="legalName"
@@ -1516,6 +2348,33 @@ try {
     <p id="legalName-error" className="text-red-600 text-sm mt-1">{errors.legalName}</p>
   )}
 </div>
+
+{formData.requestType !== "addShipTo" && (
+<div>
+  <label className="block mb-1" htmlFor="billTo">{withRequiredMark(fields.billTo.label, true)}</label>
+  <textarea
+    id="billTo"
+    name="billTo"
+    rows={2}
+    value={formData.billTo}
+    onChange={handleChange}
+    onBlur={() =>
+      setErrors(prev => ({
+        ...prev,
+        billTo: validateRequired(formData.billTo, true, fields.billTo.label) || undefined,
+      }))
+    }
+    className={`w-full border rounded px-3 py-2 ${errors.billTo ? 'border-red-600' : ''}`}
+    aria-invalid={!!errors.billTo}
+    aria-describedby="billTo-error"
+  />
+  {errors.billTo && (
+    <p id="billTo-error" className="text-red-600 text-sm mt-1">{errors.billTo}</p>
+  )}
+</div>
+)}
+
+        {formData.requestType === "addShipTo" && renderInput(withRequiredMark(fields.shipTo.label, true), 'shipTo', 'text', true)}
 
   <div>
   <label className="block mb-1" htmlFor="city">{withRequiredMark(fields.city.label, true)}</label>
@@ -1684,36 +2543,15 @@ try {
 </div>
 
 
-
-
-<div>
-  <label className="block mb-1" htmlFor="billTo">{withRequiredMark(fields.billTo.label, true)}</label>
-  <textarea
-    id="billTo"
-    name="billTo"
-    rows={2}
-    value={formData.billTo}
-    onChange={handleChange}
-    onBlur={() =>
-      setErrors(prev => ({
-        ...prev,
-        billTo: validateRequired(formData.billTo, true, fields.billTo.label) || undefined,
-      }))
-    }
-    className={`w-full border rounded px-3 py-2 ${errors.billTo ? 'border-red-600' : ''}`}
-    aria-invalid={!!errors.billTo}
-    aria-describedby="billTo-error"
-  />
-  {errors.billTo && (
-    <p id="billTo-error" className="text-red-600 text-sm mt-1">{errors.billTo}</p>
-  )}
-</div>
-
-
-
-
-        {renderInput(fields.shipTo.label, 'shipTo', 'text', true)}
-        {renderInput(fields.apContact.label, 'apContact')}
+        {formData.requestType === "newAccount" && renderNewAccountDeliveryQuestion()}
+        {formData.requestType === "newAccount" &&
+          formData.deliveryAddressSameAsBilling === "no" &&
+          renderNewAccountDeliverySection()}
+        {formData.requestType === "newAccount" && (
+          <div className="md:col-span-2 border-t border-gray-200 pt-5 mt-2">
+            <h2 className="text-lg font-semibold text-[#170f5f] mb-4">{sections.accountsPayableInformation}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {renderInput(fields.apContact.label, 'apContact')}
 
 
 
@@ -1768,6 +2606,15 @@ try {
      <p id="apEmail-error" className="text-red-600 text-sm mt-1">{errors.apEmail}</p>
    )}
  </div>
+            </div>
+          </div>
+        )}
+
+{formData.requestType === "addShipTo" && renderAdditionalShipToQuestion(1)}
+{formData.requestType === "addShipTo" &&
+  ADDITIONAL_SHIP_TO_INDEXES
+    .filter(index => index <= shipToCount)
+    .map(index => renderAdditionalShipToSection(index))}
 
 
 {formData.requestType === 'newAccount' && (
@@ -1861,21 +2708,24 @@ try {
             {renderInput(fields.yearsInBusiness.label, 'yearsInBusiness')}
             <div>
               <label className="block mb-1">{withRequiredMark(fields.typeOfBusiness.label, true)}</label>
-              <input
-                type="text"
+              <select
                 name="typeOfBusiness"
                 value={formData.typeOfBusiness}
                 onChange={handleChange}
                 onBlur={() =>
                   setErrors(prev => ({
                     ...prev,
-                    typeOfBusiness: validateRequired(formData.typeOfBusiness, true, fields.typeOfBusiness.label) || undefined,
+                    typeOfBusiness: validateTypeOfBusiness(formData.typeOfBusiness) || undefined,
                   }))
                 }
                 className={`w-full border rounded px-3 py-2 ${errors.typeOfBusiness ? 'border-red-600' : ''}`}
                 aria-invalid={!!errors.typeOfBusiness}
                 aria-describedby="typeOfBusiness-error"
-              />
+              >
+                {options.typeOfBusiness.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
               {errors.typeOfBusiness && (
                 <p id="typeOfBusiness-error" className="text-red-600 text-sm mt-1">{errors.typeOfBusiness}</p>
               )}
@@ -2361,14 +3211,25 @@ try {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1">{fields.requestorName.label}</label>
+              <label className="block mb-1">{withRequiredMark(fields.requestorName.label, true)}</label>
               <input
                 type="text"
                 name="requestorName"
                 value={formData.requestorName}
                 onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
+                onBlur={() =>
+                  setErrors(prev => ({
+                    ...prev,
+                    requestorName: validateRequired(formData.requestorName ?? "", true, fields.requestorName.label) || undefined,
+                  }))
+                }
+                className={`w-full border rounded px-3 py-2 ${errors.requestorName ? 'border-red-600' : ''}`}
+                aria-invalid={!!errors.requestorName}
+                aria-describedby="requestorName-error"
               />
+              {errors.requestorName && (
+                <p id="requestorName-error" className="text-red-600 text-sm mt-1">{errors.requestorName}</p>
+              )}
             </div>
             <div>
               <label className="block mb-1">{withRequiredMark(fields.requestorEmail.label, true)}</label>

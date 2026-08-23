@@ -1,3 +1,8 @@
+import {
+  CANADIAN_REGION_OPTIONS_EN,
+  CANADIAN_REGION_OPTIONS_FR,
+} from "@/app/lib/canadianRegions";
+
 export const MESSAGES = {
   en: {
     meta: {
@@ -18,30 +23,48 @@ export const MESSAGES = {
       taxes: "Taxes",
       bankReferences: "Bank References",
       tradeReferences: "Trade References",
+      accountsPayableInformation: "Accounts Payable Information",
       customerSegmentation: "Customer Segmentation",
       finalInformation: "Final Information", // NOT IN PDF
     },
 
     fields: {
       // Customer profile
-      legalName: { label: "Legal Name" },
+      legalName: { label: "Legal Name", addShipToLabel: "Delivery Site Name" },
       city: { label: "City" },
-      province: { label: "Province" },
+      province: { label: "Province/Territory" },
       postalCode: { label: "Postal Code" },
       telephone: { label: "Telephone" },
       fax: { label: "Fax (optional)" }, // NOT IN PDF (PDF just has "Fax #")
       website: { label: "Website" },
       email: { label: "Email" }, // PDF uses "Email Address"
-      billTo: { label: "Bill To Address" },
-      shipTo: { label: "Ship To Address" },
+      billTo: { label: "Billing Address" },
+      shipTo: {
+        label: "Delivery address",
+        businessAddressNote:
+          "Important: Delivery addresses must be business-related locations. Avoid using residential addresses.",
+      },
+      newAccountDelivery: {
+        question: "Is the delivery address the same as the billing address?",
+        noNote: "The main address will be used as the delivery address for products.",
+        yes: "Yes",
+        no: "No",
+      },
+      additionalShipTo: {
+        groupTitle: "Delivery address {idx}",
+        question: "Do you want to enter an additional delivery address in this form?",
+        maxReached: "You can enter up to 10 delivery addresses in this form.",
+        yes: "Yes",
+        no: "No",
+      },
       requestType: {
         label: "I want to request:",
         options: {
           newAccount: "New account",
-          addShipTo: "Add a ship-to to an existing account",
+          addShipTo: "Add a delivery address to an existing account",
         },
         addShipToNote:
-          "The following information is required to accurately link the new Ship-to to an existing account in our records",
+          "The following information is required to accurately link the new delivery address to an existing account in our records",
       },
       existingAccountInfo: { label: "Existing account number and/or payer name" },
       payerAddress: { label: "Payer address" },
@@ -58,7 +81,7 @@ export const MESSAGES = {
       typeOfOrganization: { label: "Type of Organization" },
       yearsInBusiness: { label: "Years in Business" },
       typeOfBusiness: { label: "Type of Business" },
-      annualSales: { label: "Annual Sales" },
+      annualSales: { label: "Annual Sales (CAD)" },
       resell: { label: "Will the product be resold or distributed?" },
       intendedDistribution: { label: "Intended geographical distribution" },
       creditAmount: { label: "Credit Amount Requested" },
@@ -128,6 +151,15 @@ export const MESSAGES = {
         { value: "Proprietorship", label: "Proprietorship" },
       ],
 
+      typeOfBusiness: [
+        { value: "", label: "Select" },
+        { value: "Hospital", label: "Hospital" },
+        { value: "Clinic", label: "Clinic" },
+        { value: "Distributor", label: "Distributor" },
+        { value: "Physician", label: "Physician" },
+        { value: "Other", label: "Other" },
+      ],
+
       annualPurchase: [
         { value: "", label: "Select a range" }, // NOT IN PDF
         { value: "0 - 25,000", label: "0 - 25,000" },
@@ -158,19 +190,8 @@ export const MESSAGES = {
         qst: "QST",
       },
 
-      // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
-      provinces: [
-        { value: "Alberta", label: "Alberta" },
-        { value: "British Columbia", label: "British Columbia" },
-        { value: "Manitoba", label: "Manitoba" },
-        { value: "New Brunswick", label: "New Brunswick" },
-        { value: "Newfoundland and Labrador", label: "Newfoundland and Labrador" },
-        { value: "Nova Scotia", label: "Nova Scotia" },
-        { value: "Ontario", label: "Ontario" },
-        { value: "Prince Edward Island", label: "Prince Edward Island" },
-        { value: "Quebec", label: "Quebec" },
-        { value: "Saskatchewan", label: "Saskatchewan" },
-      ],
+      // NOT IN PDF: region dropdown is not in the PDF (PDF just says "Province:")
+      provinces: CANADIAN_REGION_OPTIONS_EN,
 
       segmentation: {
         primary: [
@@ -236,19 +257,19 @@ export const MESSAGES = {
       // templates: {label}, {max}, {idx}
       requiredSuffix: "is required.",
       invalidOption: "Select a valid option.",
-      invalidProvince: "Select a valid province.",
+      invalidProvince: "Select a valid province/territory.",
       invalidEmail: "Enter a valid email address.",
       maxLength: "Max length is {max} characters.",
       legalNameRequired: "Legal Name is required.",
       cityRequired: "City is required.",
-      provinceRequired: "Province is required.",
+      provinceRequired: "Province/Territory is required.",
       postalCodeRequired: "Postal Code is required.",
       paymentTermsRequired: "Payment Terms selection is required.",
       onlyLettersNumbersSpaces: "Only letters, numbers, and spaces are allowed.",
       cityAllowedChars:
         "Only letters, numbers, spaces, hyphens (-), apostrophes (’ or '), and periods (.) are allowed.",
       postalCodeFormat:
-        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVXY are valid.",
+        "Format must be ANA NAN (e.g., K1A 0B1). Only letters ABCEGHJKLMNPRSTVWXYZ are valid.",
       phone10Digits: "{label} must have 10 digits.",
       tradeRefAccountRequired: "Trade Ref {idx} Account No. is required.",
       tradeRefContactRequired: "Trade Ref {idx} Contact Person is required.",
@@ -302,22 +323,40 @@ export const MESSAGES = {
       companyInformation: "Informations sur la société",
       bankReferences: "Référence bancaire",
       tradeReferences: "Références commerciales",
+      accountsPayableInformation: "Informations sur les comptes payables",
       customerSegmentation: "Segmentation de la clientèle",
       finalInformation: "Renseignements finaux", // NOT IN PDF
     },
 
     fields: {
       // Customer profile
-      legalName: { label: "Nom légal" },
+      legalName: { label: "Nom légal", addShipToLabel: "Nom du site de livraison" },
       city: { label: "Ville" },
-      province: { label: "Province" },
+      province: { label: "Province/territoire" },
       postalCode: { label: "Code postal" },
       telephone: { label: "Numéro de téléphone" },
       fax: { label: "Numéro de fax (facultatif)" }, // NOT IN PDF (the "(optional)" is custom)
       website: { label: "Site Web" },
       email: { label: "Adresse courriel" },
       billTo: { label: "Adresse de facturation" },
-      shipTo: { label: "Adresse de livraison" },
+      shipTo: {
+        label: "Adresse de livraison",
+        businessAddressNote:
+          "Important : Les adresses de livraison doivent etre des lieux lies a l'entreprise. Evitez d'utiliser des adresses residentielles.",
+      },
+      newAccountDelivery: {
+        question: "L'adresse de livraison est-elle la même que l'adresse de facturation ?",
+        noNote: "L'adresse principale sera utilisée comme adresse de livraison des produits.",
+        yes: "Oui",
+        no: "Non",
+      },
+      additionalShipTo: {
+        groupTitle: "Adresse de livraison {idx}",
+        question: "Voulez-vous saisir une adresse de livraison supplémentaire dans ce formulaire ?",
+        maxReached: "Vous pouvez saisir jusqu'à 10 adresses de livraison dans ce formulaire.",
+        yes: "Oui",
+        no: "Non",
+      },
       requestType: {
         label: "Je veux demander :",
         options: {
@@ -342,7 +381,7 @@ export const MESSAGES = {
       typeOfOrganization: { label: "Type d’entreprise" },
       yearsInBusiness: { label: "Nombre d’année en affaire" },
       typeOfBusiness: { label: "Genre d’industrie" },
-      annualSales: { label: "Ventes annuelles" },
+      annualSales: { label: "Ventes annuelles (CAD)" },
       resell: { label: "Les produits sont pour vente ou distribution" },
       intendedDistribution: { label: "Répartition géographique prévue" },
       creditAmount: { label: "Marge de crédit désirée" },
@@ -412,6 +451,15 @@ export const MESSAGES = {
         { value: "Proprietorship", label: "Propriétaire" },
       ],
 
+      typeOfBusiness: [
+        { value: "", label: "Sélectionner" },
+        { value: "Hospital", label: "Hôpital" },
+        { value: "Clinic", label: "Clinique" },
+        { value: "Distributor", label: "Distributeur" },
+        { value: "Physician", label: "Médecin" },
+        { value: "Other", label: "Autre" },
+      ],
+
       annualPurchase: [
         { value: "", label: "Sélectionner une plage" }, // NOT IN PDF
         { value: "0 - 25 000", label: "0 - 25 000" },
@@ -442,20 +490,9 @@ export const MESSAGES = {
         qst: "TVQ (QST)",
       },
 
-      // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
-      // Values kept in English to match existing validateProvince() logic.
-      provinces: [
-        { value: "Alberta", label: "Alberta" },
-        { value: "British Columbia", label: "Colombie-Britannique" },
-        { value: "Manitoba", label: "Manitoba" },
-        { value: "New Brunswick", label: "Nouveau-Brunswick" },
-        { value: "Newfoundland and Labrador", label: "Terre-Neuve-et-Labrador" },
-        { value: "Nova Scotia", label: "Nouvelle-Écosse" },
-        { value: "Ontario", label: "Ontario" },
-        { value: "Prince Edward Island", label: "Île-du-Prince-Édouard" },
-        { value: "Quebec", label: "Québec" },
-        { value: "Saskatchewan", label: "Saskatchewan" },
-      ],
+      // NOT IN PDF: region dropdown is not in the PDF (PDF just says "Province:")
+      // Values remain in English to preserve the existing data contract.
+      provinces: CANADIAN_REGION_OPTIONS_FR,
 
       segmentation: {
         primary: [
@@ -519,19 +556,19 @@ export const MESSAGES = {
       // templates: {label}, {max}, {idx}
       requiredSuffix: "est requis.",
       invalidOption: "Sélectionnez une option valide.",
-      invalidProvince: "Sélectionnez une province valide.",
+      invalidProvince: "Sélectionnez une province ou un territoire valide.",
       invalidEmail: "Entrez une adresse courriel valide.",
       maxLength: "La longueur maximale est de {max} caractères.",
       legalNameRequired: "Nom légal est requis.",
       cityRequired: "Ville est requis.",
-      provinceRequired: "Province est requis.",
+      provinceRequired: "Une province ou un territoire est requis.",
       postalCodeRequired: "Code postal est requis.",
       paymentTermsRequired: "La sélection des termes de paiement est requise.",
       onlyLettersNumbersSpaces: "Seules les lettres, les chiffres et les espaces sont autorisés.",
       cityAllowedChars:
         "Seules les lettres, les chiffres, les espaces, les traits d’union (-), les apostrophes (’ ou '), et les points (.) sont autorisés.",
       postalCodeFormat:
-        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVXY sont valides.",
+        "Le format doit être ANA NAN (ex., K1A 0B1). Seules les lettres ABCEGHJKLMNPRSTVWXYZ sont valides.",
       phone10Digits: "{label} doit comporter 10 chiffres.",
       tradeRefAccountRequired: "Référence commerciale {idx} : No. de compte est requis.",
       tradeRefContactRequired: "Référence commerciale {idx} : Nom du contact est requis.",
