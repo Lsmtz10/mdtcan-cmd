@@ -1,3 +1,8 @@
+import {
+  CANADIAN_REGION_OPTIONS_EN,
+  CANADIAN_REGION_OPTIONS_FR,
+} from "@/app/lib/canadianRegions";
+
 export const MESSAGES = {
   en: {
     meta: {
@@ -27,7 +32,7 @@ export const MESSAGES = {
       // Customer profile
       legalName: { label: "Legal Name", addShipToLabel: "Delivery Site Name" },
       city: { label: "City" },
-      province: { label: "Province" },
+      province: { label: "Province/Territory" },
       postalCode: { label: "Postal Code" },
       telephone: { label: "Telephone" },
       fax: { label: "Fax (optional)" }, // NOT IN PDF (PDF just has "Fax #")
@@ -185,19 +190,8 @@ export const MESSAGES = {
         qst: "QST",
       },
 
-      // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
-      provinces: [
-        { value: "Alberta", label: "Alberta" },
-        { value: "British Columbia", label: "British Columbia" },
-        { value: "Manitoba", label: "Manitoba" },
-        { value: "New Brunswick", label: "New Brunswick" },
-        { value: "Newfoundland and Labrador", label: "Newfoundland and Labrador" },
-        { value: "Nova Scotia", label: "Nova Scotia" },
-        { value: "Ontario", label: "Ontario" },
-        { value: "Prince Edward Island", label: "Prince Edward Island" },
-        { value: "Quebec", label: "Quebec" },
-        { value: "Saskatchewan", label: "Saskatchewan" },
-      ],
+      // NOT IN PDF: region dropdown is not in the PDF (PDF just says "Province:")
+      provinces: CANADIAN_REGION_OPTIONS_EN,
 
       segmentation: {
         primary: [
@@ -263,12 +257,12 @@ export const MESSAGES = {
       // templates: {label}, {max}, {idx}
       requiredSuffix: "is required.",
       invalidOption: "Select a valid option.",
-      invalidProvince: "Select a valid province.",
+      invalidProvince: "Select a valid province/territory.",
       invalidEmail: "Enter a valid email address.",
       maxLength: "Max length is {max} characters.",
       legalNameRequired: "Legal Name is required.",
       cityRequired: "City is required.",
-      provinceRequired: "Province is required.",
+      provinceRequired: "Province/Territory is required.",
       postalCodeRequired: "Postal Code is required.",
       paymentTermsRequired: "Payment Terms selection is required.",
       onlyLettersNumbersSpaces: "Only letters, numbers, and spaces are allowed.",
@@ -338,7 +332,7 @@ export const MESSAGES = {
       // Customer profile
       legalName: { label: "Nom légal", addShipToLabel: "Nom du site de livraison" },
       city: { label: "Ville" },
-      province: { label: "Province" },
+      province: { label: "Province/territoire" },
       postalCode: { label: "Code postal" },
       telephone: { label: "Numéro de téléphone" },
       fax: { label: "Numéro de fax (facultatif)" }, // NOT IN PDF (the "(optional)" is custom)
@@ -496,20 +490,9 @@ export const MESSAGES = {
         qst: "TVQ (QST)",
       },
 
-      // NOT IN PDF: province dropdown is not in the PDF (PDF just says "Province:")
-      // Values kept in English to match existing validateProvince() logic.
-      provinces: [
-        { value: "Alberta", label: "Alberta" },
-        { value: "British Columbia", label: "Colombie-Britannique" },
-        { value: "Manitoba", label: "Manitoba" },
-        { value: "New Brunswick", label: "Nouveau-Brunswick" },
-        { value: "Newfoundland and Labrador", label: "Terre-Neuve-et-Labrador" },
-        { value: "Nova Scotia", label: "Nouvelle-Écosse" },
-        { value: "Ontario", label: "Ontario" },
-        { value: "Prince Edward Island", label: "Île-du-Prince-Édouard" },
-        { value: "Quebec", label: "Québec" },
-        { value: "Saskatchewan", label: "Saskatchewan" },
-      ],
+      // NOT IN PDF: region dropdown is not in the PDF (PDF just says "Province:")
+      // Values remain in English to preserve the existing data contract.
+      provinces: CANADIAN_REGION_OPTIONS_FR,
 
       segmentation: {
         primary: [
@@ -573,12 +556,12 @@ export const MESSAGES = {
       // templates: {label}, {max}, {idx}
       requiredSuffix: "est requis.",
       invalidOption: "Sélectionnez une option valide.",
-      invalidProvince: "Sélectionnez une province valide.",
+      invalidProvince: "Sélectionnez une province ou un territoire valide.",
       invalidEmail: "Entrez une adresse courriel valide.",
       maxLength: "La longueur maximale est de {max} caractères.",
       legalNameRequired: "Nom légal est requis.",
       cityRequired: "Ville est requis.",
-      provinceRequired: "Province est requis.",
+      provinceRequired: "Une province ou un territoire est requis.",
       postalCodeRequired: "Code postal est requis.",
       paymentTermsRequired: "La sélection des termes de paiement est requise.",
       onlyLettersNumbersSpaces: "Seules les lettres, les chiffres et les espaces sont autorisés.",
